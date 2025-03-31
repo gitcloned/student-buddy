@@ -21,7 +21,8 @@ const openai = new OpenAI({
 const conversations = new Map();
 
 // Function to parse response into standardized format
-function parseResponse(text: string): { type: string; response: string } {
+function parseResponse(text: string): { type: string; text?: string; action?: string } {
+  console.log(`got gpt response as: ${text}`);
   let yamlText = text;
 
   // Check if response contains YAML markdown wrappers
@@ -35,16 +36,17 @@ function parseResponse(text: string): { type: string; response: string } {
 
   // Try to parse as YAML and convert to JSON
   try {
-    const parsed = yaml.load(yamlText) as { type?: string; response?: string };
+    const parsed = yaml.load(yamlText) as { type?: string; text?: string; action?: string };
     return {
       type: parsed.type || "text",
-      response: parsed.response || yamlText,
+      text: parsed.text || yamlText,
+      action: parsed.action
     };
   } catch (e) {
     // If YAML parsing fails, return default structure with full text as response
     return {
       type: "text",
-      response: yamlText,
+      text: yamlText,
     };
   }
 }
@@ -118,7 +120,8 @@ wss.on("connection", (ws) => {
         ws.send(
           JSON.stringify({
             type: parsedResponse.type,
-            response: parsedResponse.response,
+            text: parsedResponse.text,
+            action: parsedResponse.action
           })
         );
       }

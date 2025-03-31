@@ -20,7 +20,7 @@ const HomePage = () => {
     const utterance = new SpeechSynthesisUtterance(text);
     const voices = synthesis.getVoices();
     utterance.voice = voices.find((voice) => voice.name === "Google हिन्दी");
-    synthesis.cancel()
+    synthesis.cancel();
     synthesis.speak(utterance);
   }, []);
 
@@ -37,20 +37,27 @@ const HomePage = () => {
           text: "Hi! I'm your study buddy. How can I help you today?",
         },
       ]);
-      //speakText("Hi! I'm your study buddy. How can I help you today?")
+      speakText("Hi! I'm your study buddy. How can I help you today?");
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      
+      console.log(data);
+
       if (data.type === "text") {
-        setMessages((prev) => [...prev, { type: "mascot", text: data.response }]);
-        speakText(data.response);
+        setMessages((prev) => [
+          ...prev,
+          { type: "mascot", text: data.text },
+        ]);
+        speakText(data.text);
       } else if (data.type === "action") {
-        if (data.response === "take_photo") {
-          // setMessages((prev) => [
-          //   ...prev,
-          //   { type: "system", text: "Please take a photo..." },
-          // ]);
+        if (data.action === "take_photo") {
+          setMessages((prev) => [
+            ...prev,
+            { type: "mascot", text: data.text },
+          ]);
+          speakText(data.text);
           setShowCamera(true);
         }
       } else if (data.type === "error") {
@@ -71,7 +78,8 @@ const HomePage = () => {
 
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -98,7 +106,9 @@ const HomePage = () => {
       const canvas = photoRef.current;
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas
+        .getContext("2d")
+        .drawImage(video, 0, 0, canvas.width, canvas.height);
       const photoData = canvas.toDataURL("image/jpeg");
       handlePhotoCapture(photoData);
     }
@@ -110,7 +120,9 @@ const HomePage = () => {
 
     const startCamera = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
         streamRef.current = stream;
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
@@ -138,7 +150,8 @@ const HomePage = () => {
   }, [showCamera]);
 
   useEffect(() => {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    const recognition = new (window.SpeechRecognition ||
+      window.webkitSpeechRecognition)();
     recognition.lang = "en-US";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
@@ -194,11 +207,15 @@ const HomePage = () => {
   return (
     <div className="relative w-full h-full bg-white flex flex-row rounded-2xl">
       <div className="left-4 bottom-4 flex items-center w-[30vw]">
-        <img src={mascot} alt="Study Buddy Mascot" className="w-[30vw] object-contain" />
+        <img
+          src={mascot}
+          alt="Study Buddy Mascot"
+          className="w-[30vw] object-contain"
+        />
       </div>
 
       <div className="flex-grow mb-18 p-4">
-        <div 
+        <div
           ref={chatContainerRef}
           className="flex-1 overflow-y-auto p-4 space-y-4 h-full"
         >
@@ -310,7 +327,10 @@ const HomePage = () => {
           </svg>
         </button>
 
-        <form onSubmit={handleSendMessage} className="flex items-center gap-2 hidden">
+        <form
+          onSubmit={handleSendMessage}
+          className="flex items-center gap-2 hidden"
+        >
           <input
             type="text"
             value={inputMessage}
