@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import mascot from "../assets/mascot.webp";
+import background from "../assets/background.avif";
 
 const HomePage = () => {
   const [messages, setMessages] = useState([]);
@@ -205,159 +206,167 @@ const HomePage = () => {
   };
 
   return (
-    <div className="relative w-full h-full bg-white flex flex-row rounded-2xl">
-      <div className="left-4 bottom-4 flex items-center w-[30vw]">
-        <img
-          src={mascot}
-          alt="Study Buddy Mascot"
-          className="w-[30vw] object-contain"
-        />
-      </div>
-
-      <div className="flex-grow mb-18 p-4">
-        <div
-          ref={chatContainerRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4 h-full"
-        >
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${
-                  message.type === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`rounded-lg p-3 max-w-[80%] ${
-                    message.type === "user"
-                      ? "bg-yellow-200"
-                      : message.type === "system"
-                      ? "bg-gray-200"
-                      : "bg-[#fd9b9e] text-[#244d2b]"
-                  }`}
-                >
-                  {message.text}
-                </div>
-              </div>
-            ))}
+    <div className="w-full h-full">
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30 z-0"
+        style={{ backgroundImage: `url(${background})` }}
+      />
+      <div className="relative z-10 w-full h-full">
+        <div className="relative w-full h-full flex flex-row rounded-2xl">
+          <div className="left-4 bottom-4 flex items-center w-[30vw] mt-30">
+            <img
+              src={mascot}
+              alt="Study Buddy Mascot"
+              className="w-[30vw] object-contain"
+            />
           </div>
-        </div>
 
-        {showCamera && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-2xl shadow-lg max-w-md w-full mx-4">
-              <div className="relative">
-                <video
-                  ref={videoRef}
-                  className="w-full h-64 object-cover rounded-lg bg-gray-100"
-                  autoPlay
-                  playsInline
-                  muted
-                />
-                <canvas ref={photoRef} className="hidden" />
-                {!isCameraReady && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                    <div className="text-gray-500">Loading camera...</div>
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 flex flex-col gap-3">
-                <button
-                  onClick={capturePhoto}
-                  disabled={!isCameraReady}
-                  className={`bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded-full text-lg font-medium flex items-center justify-center gap-2 transition-colors ${
-                    !isCameraReady ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+          <div className="flex-grow mb-18 p-4">
+            <div
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4 h-full"
+            >
+              <div className="space-y-4">
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${
+                      message.type === "user" ? "justify-end" : "justify-start"
+                    }`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  Take Photo!
-                </button>
-                <button
-                  onClick={() => setShowCamera(false)}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-6 rounded-full text-lg font-medium transition-colors"
-                >
-                  Cancel
-                </button>
+                    <div
+                      className={`rounded-lg p-3 max-w-[80%] ${
+                        message.type === "user"
+                          ? "bg-yellow-200"
+                          : message.type === "system"
+                          ? "bg-gray-200"
+                          : "bg-[#fd9b9e] text-[#244d2b]"
+                      }`}
+                    >
+                      {message.text}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
+
+            {showCamera && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded-2xl shadow-lg max-w-md w-full mx-4">
+                  <div className="relative">
+                    <video
+                      ref={videoRef}
+                      className="w-full h-64 object-cover rounded-lg bg-gray-100"
+                      autoPlay
+                      playsInline
+                      muted
+                    />
+                    <canvas ref={photoRef} className="hidden" />
+                    {!isCameraReady && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                        <div className="text-gray-500">Loading camera...</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4 flex flex-col gap-3">
+                    <button
+                      onClick={capturePhoto}
+                      disabled={!isCameraReady}
+                      className={`bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded-full text-lg font-medium flex items-center justify-center gap-2 transition-colors ${
+                        !isCameraReady ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                      Take Photo!
+                    </button>
+                    <button
+                      onClick={() => setShowCamera(false)}
+                      className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-6 rounded-full text-lg font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div className="absolute bottom-4 right-4 flex items-center gap-2">
-        <button
-          onClick={handleStartListening}
-          disabled={isListening}
-          className={`bg-[#f0e6b0] p-3 rounded-full hover:bg-yellow-500 transition-colors ${
-            isListening ? "animate-pulse" : ""
-          }`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-            />
-          </svg>
-        </button>
-
-        <form
-          onSubmit={handleSendMessage}
-          className="flex items-center gap-2 hidden"
-        >
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            className="rounded-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-yellow-400"
-            placeholder="Type your message..."
-          />
-          <button
-            type="submit"
-            className="bg-yellow-400 p-3 rounded-full hover:bg-yellow-500 transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          <div className="absolute bottom-4 right-4 flex items-center gap-2">
+            <button
+              onClick={handleStartListening}
+              disabled={isListening}
+              className={`bg-[#f0e6b0] p-3 rounded-full hover:bg-yellow-500 transition-colors ${
+                isListening ? "animate-pulse" : ""
+              }`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                />
+              </svg>
+            </button>
+
+            <form
+              onSubmit={handleSendMessage}
+              className="flex items-center gap-2 hidden"
+            >
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                className="rounded-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-yellow-400"
+                placeholder="Type your message..."
               />
-            </svg>
-          </button>
-        </form>
+              <button
+                type="submit"
+                className="bg-yellow-400 p-3 rounded-full hover:bg-yellow-500 transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );
