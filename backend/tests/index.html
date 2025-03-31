@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        #container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #speech-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: background-color 0.3s ease;
+        }
+        #speech-btn:hover {
+            background-color: #45a049;
+        }
+        #output {
+            margin-top: 20px;
+            min-height: 100px;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>AI Voice Assistant</h1>
+        <button id="speech-btn">Start Speaking</button>
+        <div id="output"></div>
+    </div>
+<script>
+    // Generate a simple session ID
+    const sessionId = Math.random().toString(36).substring(2);
+    const socket = new WebSocket('ws://localhost:8000');
+    const speechBtn = document.getElementById('speech-btn');
+    const outputDiv = document.getElementById('output');
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    const synthesis = window.speechSynthesis;
+
+    socket.onopen = () => {
+        console.log('WebSocket connection established');
+        outputDiv.textContent = 'Connected. Press the button to start speaking.';
+        // Send session ID when connecting
+        socket.send(JSON.stringify({ type: 'session', sessionId: sessionId }));
+    };
+
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'ai_response') {
+            outputDiv.textContent = `AI: ${data.text}`;
+            const utterance = new SpeechSynthesisUtterance(data.text);
+            utterance.voice = synthesis.getVoices().find(voice => voice.name === 'Google हिन्दी') || synthesis.getVoices()[0];
+            synthesis.speak(utterance);
+        } else if (data.type === 'error') {
+            outputDiv.textContent = `Error: ${data.message}`;
+        }
+    };
+
+    socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        outputDiv.textContent = 'Connection error. Please try again.';
+    };
+
+    recognition.onresult = (event) => {
+        const speechResult = event.results[0][0].transcript;
+        outputDiv.textContent = `You said: ${speechResult}`;
+        socket.send(JSON.stringify({
+            type: 'message',
+            sessionId: sessionId,
+            text: speechResult
+        }));
+    };
+
+    recognition.onerror = (event) => {
+        outputDiv.textContent = 'Error occurred in recognition: ' + event.error;
+    };
+
+    speechBtn.addEventListener('click', () => {
+        try {
+            recognition.start();
+            outputDiv.textContent = 'Listening... Speak now.';
+        } catch (error) {
+            outputDiv.textContent = 'Error starting speech recognition: ' + error;
+        }
+    });
+</script>
+
+</body>
+</html>
+
