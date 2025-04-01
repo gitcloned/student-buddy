@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import mascot from "../assets/mascot.webp";
 import background from "../assets/background.avif";
 import dropSound from "../assets/drop_sound.mp3";
+import CameraComponent from "./CameraComponent";
 
 const HomePage = () => {
   const [messages, setMessages] = useState([]);
@@ -11,11 +12,7 @@ const HomePage = () => {
   const [isPulsing, setIsPulsing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [sessionId] = useState(() => Math.random().toString(36).substring(2));
-  const videoRef = useRef(null);
-  const photoRef = useRef(null);
   const chatContainerRef = useRef(null);
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const streamRef = useRef(null); // To track and stop the stream
   const audioRef = useRef(new Audio(dropSound));
 
   const synthesis = window.speechSynthesis;
@@ -41,26 +38,20 @@ const HomePage = () => {
           text: "Hi! I'm your study buddy. How can I help you today?",
         },
       ]);
-      speakText("Hi! I'm your study buddy. How can I help you today?");
+      // speakText("Hi! I'm your study buddy. How can I help you today?");
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      
+
       console.log(data);
 
       if (data.type === "text") {
-        setMessages((prev) => [
-          ...prev,
-          { type: "mascot", text: data.text },
-        ]);
+        setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
         speakText(data.text);
       } else if (data.type === "action") {
         if (data.action === "take_photo") {
-          setMessages((prev) => [
-            ...prev,
-            { type: "mascot", text: data.text },
-          ]);
+          setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
           speakText(data.text);
           setShowCamera(true);
         }
@@ -86,72 +77,6 @@ const HomePage = () => {
         chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
-
-  const handlePhotoCapture = (photoData) => {
-    if (socket) {
-      socket.send(
-        JSON.stringify({
-          type: "photo",
-          sessionId,
-          data: photoData,
-        })
-      );
-      setShowCamera(false);
-      setMessages((prev) => [
-        ...prev,
-        { type: "user", text: "Photo sent successfully" },
-      ]);
-    }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && photoRef.current) {
-      const video = videoRef.current;
-      const canvas = photoRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas
-        .getContext("2d")
-        .drawImage(video, 0, 0, canvas.width, canvas.height);
-      const photoData = canvas.toDataURL("image/jpeg");
-      handlePhotoCapture(photoData);
-    }
-  };
-
-  // Camera initialization effect
-  useEffect(() => {
-    if (!showCamera || !videoRef.current) return;
-
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
-        streamRef.current = stream;
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          setIsCameraReady(true);
-        };
-      } catch (error) {
-        console.error("Error accessing camera:", error);
-        setMessages((prev) => [
-          ...prev,
-          { type: "system", text: "Camera access denied or unavailable." },
-        ]);
-      }
-    };
-
-    startCamera();
-
-    // Cleanup function to stop the stream
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-      setIsCameraReady(false);
-    };
-  }, [showCamera]);
 
   useEffect(() => {
     const recognition = new (window.SpeechRecognition ||
@@ -218,7 +143,7 @@ const HomePage = () => {
 
   return (
     <div className="w-full h-full">
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30 z-0"
         style={{ backgroundImage: `url(${background})` }}
       />
@@ -262,62 +187,25 @@ const HomePage = () => {
             </div>
 
             {showCamera && (
-              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-                <div className="bg-white p-6 rounded-2xl shadow-lg max-w-md w-full mx-4">
-                  <div className="relative">
-                    <video
-                      ref={videoRef}
-                      className="w-full h-64 object-cover rounded-lg bg-gray-100"
-                      autoPlay
-                      playsInline
-                      muted
-                    />
-                    <canvas ref={photoRef} className="hidden" />
-                    {!isCameraReady && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                        <div className="text-gray-500">Loading camera...</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-4 flex flex-col gap-3">
-                    <button
-                      onClick={capturePhoto}
-                      disabled={!isCameraReady}
-                      className={`bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded-full text-lg font-medium flex items-center justify-center gap-2 transition-colors ${
-                        !isCameraReady ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-6 w-6"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                      Take Photo!
-                    </button>
-                    <button
-                      onClick={() => setShowCamera(false)}
-                      className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-6 rounded-full text-lg font-medium transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <CameraComponent
+                onCapture={(photoData) => {
+                  if (socket) {
+                    socket.send(
+                      JSON.stringify({
+                        type: "photo",
+                        sessionId,
+                        data: photoData,
+                      })
+                    );
+                    setShowCamera(false);
+                    setMessages((prev) => [
+                      ...prev,
+                      { type: "user", text: "Photo sent successfully" },
+                    ]);
+                  }
+                }}
+                onClose={() => setShowCamera(false)}
+              />
             )}
           </div>
 
@@ -330,6 +218,34 @@ const HomePage = () => {
                 placeholder="Type your message..."
                 className="flex-1 p-2 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 hidden"
               />
+              <button
+                onClick={() => {
+                  setShowCamera(true);
+                }}
+                className={`bg-yellow-500 shadow-lg p-4 rounded-full pointer`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="#244d2b"
+                  className="w-8 h-8"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </button>
               <button
                 onMouseDown={handleStartListening}
                 onMouseUp={handleStopListening}
