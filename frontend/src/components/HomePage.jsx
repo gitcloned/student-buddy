@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import mascot from "../assets/mascot.webp";
 import background from "../assets/background.avif";
+import dropSound from "../assets/drop_sound.mp3";
 
 const HomePage = () => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [socket, setSocket] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [isPulsing, setIsPulsing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [sessionId] = useState(() => Math.random().toString(36).substring(2));
   const videoRef = useRef(null);
@@ -14,6 +16,7 @@ const HomePage = () => {
   const chatContainerRef = useRef(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const streamRef = useRef(null); // To track and stop the stream
+  const audioRef = useRef(new Audio(dropSound));
 
   const synthesis = window.speechSynthesis;
 
@@ -156,6 +159,7 @@ const HomePage = () => {
     recognition.lang = "en-US";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
+    recognition.continuous = true;
 
     recognition.onresult = (event) => {
       const speechResult = event.results[0][0].transcript;
@@ -169,39 +173,46 @@ const HomePage = () => {
           })
         );
       }
-      setIsListening(false);
     };
 
     recognition.onerror = (event) => {
       console.error("Speech recognition error:", event.error);
       setIsListening(false);
+      setIsPulsing(false);
     };
 
-    recognition.onend = () => setIsListening(false);
+    recognition.onend = () => {
+      setIsListening(false);
+      setIsPulsing(false);
+    };
 
     window.recognition = recognition;
   }, [socket, sessionId]);
 
-  const handleStartListening = () => {
+  const handleStartListening = (e) => {
     try {
+      e.preventDefault();
+      e.stopPropagation();
+
       window.recognition.start();
       setIsListening(true);
-      // setMessages((prev) => [
-      //   ...prev,
-      //   { type: "system", text: "Listening... Speak now." },
-      // ]);
+      setIsPulsing(true);
     } catch (error) {
       console.error("Error starting speech recognition:", error);
     }
   };
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (inputMessage.trim() && socket) {
-      const message = { type: "message", sessionId, text: inputMessage };
-      socket.send(JSON.stringify(message));
-      setMessages((prev) => [...prev, { type: "user", text: inputMessage }]);
-      setInputMessage("");
+  const handleStopListening = (e) => {
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+
+      window.recognition.stop();
+      setIsListening(false);
+      setIsPulsing(false);
+      audioRef.current.play();
+    } catch (error) {
+      console.error("Error stopping speech recognition:", error);
     }
   };
 
@@ -311,60 +322,42 @@ const HomePage = () => {
           </div>
 
           <div className="absolute bottom-4 right-4 flex items-center gap-2">
-            <button
-              onClick={handleStartListening}
-              disabled={isListening}
-              className={`bg-[#f0e6b0] p-3 rounded-full hover:bg-yellow-500 transition-colors ${
-                isListening ? "animate-pulse" : ""
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                />
-              </svg>
-            </button>
-
-            <form
-              onSubmit={handleSendMessage}
-              className="flex items-center gap-2 hidden"
-            >
+            <div className="flex items-center gap-2 mt-4">
               <input
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                className="rounded-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-yellow-400"
                 placeholder="Type your message..."
+                className="flex-1 p-2 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 hidden"
               />
               <button
-                type="submit"
-                className="bg-yellow-400 p-3 rounded-full hover:bg-yellow-500 transition-colors"
+                onMouseDown={handleStartListening}
+                onMouseUp={handleStopListening}
+                onMouseLeave={handleStopListening}
+                onTouchStart={handleStartListening}
+                onTouchEnd={handleStopListening}
+                className={`p-4 rounded-full shadow-lg ${
+                  isListening ? "bg-yellow-500" : "bg-yellow-500"
+                } text-white ${
+                  isPulsing ? "animate-pulse ring-4 ring-yellow-300" : ""
+                }`}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
                   fill="none"
                   viewBox="0 0 24 24"
-                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  stroke="#244d2b"
+                  className="w-8 h-8"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                    d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
                   />
                 </svg>
               </button>
-            </form>
+            </div>
           </div>
         </div>
       </div>
