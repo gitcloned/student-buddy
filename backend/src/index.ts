@@ -2,8 +2,11 @@ import * as dotenv from "dotenv";
 import * as http from "http";
 import { WebSocketServer } from "ws";
 import OpenAI from "openai";
-import { SYSTEM_PROMPT } from "./prompt";
 import * as yaml from "js-yaml";
+import ConversationManager from "./ConversationManager";
+import { loadTeacherPersona } from "./TeacherPersonaLoader";
+import { loadBookFeatures } from "./PedagogicalKnowledgeLoader";
+import { ChatCompletionMessageParam } from "openai/resources/chat";
 
 dotenv.config();
 
@@ -17,11 +20,65 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Store conversations by session ID
-const conversations = new Map();
+const conversationManager = ConversationManager.getInstance();
+
+async function generateSystemPrompt(sessionId: string): Promise<string> {
+  const session = conversationManager.getSession(sessionId);
+  if (!session) {
+    throw new Error("Session not found");
+  }
+
+  const teacherPersona = await loadTeacherPersona(sessionId);
+
+  // Get all book features for the session's books
+  const bookFeatures = await loadBookFeatures(sessionId);
+  console.log(`Book features for session ${sessionId}:`, bookFeatures);
+
+  // Create the system prompt
+  const systemPrompt = `You are a friendly and helpful AI tutor for ${
+    session.grade
+  } children.
+
+${teacherPersona}
+
+You will teach the following book features:
+${Object.entries(
+  bookFeatures
+    .reduce((acc, { feature, subject }) => {
+      if (!acc[subject]) acc[subject] = [];
+      acc[subject].push(feature);
+      return acc;
+    }, {} as Record<string, string[]>)
+)
+  .map(([subject, features]) => `${subject}\n - ${features.join("\n - ")}`)
+  .join("\n\n")}
+
+As a child shares what they want to learn, use the appropriate teaching methodology for that feature.
+
+Reply format
+---
+You should reply back in YAML format only and nothing else. Replies can be of below types:
+
+- Text reply
+---
+type: text
+text: Hello
+
+- Take photo
+---
+type: action
+action: take_photo
+text: Take a photo of speaking corner`;
+
+  return systemPrompt;
+}
 
 // Function to parse response into standardized format
-function parseResponse(text: string): { type: string; text?: string; action?: string } {
+function parseResponse(text: string): {
+  type: string;
+  text?: string;
+  action?: string;
+} {
   console.log(`got gpt response as: ${text}`);
   let yamlText = text;
 
@@ -36,11 +93,15 @@ function parseResponse(text: string): { type: string; text?: string; action?: st
 
   // Try to parse as YAML and convert to JSON
   try {
-    const parsed = yaml.load(yamlText) as { type?: string; text?: string; action?: string };
+    const parsed = yaml.load(yamlText) as {
+      type?: string;
+      text?: string;
+      action?: string;
+    };
     return {
       type: parsed.type || "text",
       text: parsed.text || yamlText,
-      action: parsed.action
+      action: parsed.action,
     };
   } catch (e) {
     // If YAML parsing fails, return default structure with full text as response
@@ -52,7 +113,7 @@ function parseResponse(text: string): { type: string; text?: string; action?: st
 }
 
 wss.on("connection", (ws) => {
-  let currentSessionId: null = null;
+  let currentSessionId: string | null = null;
 
   ws.on("message", async (message) => {
     try {
@@ -60,11 +121,22 @@ wss.on("connection", (ws) => {
 
       if (data.type === "session") {
         currentSessionId = data.sessionId;
-        if (!conversations.has(currentSessionId)) {
-          conversations.set(currentSessionId, [
-            { role: "system", content: SYSTEM_PROMPT },
-          ]);
-        }
+        // Create new session with grade and book information
+        conversationManager.createSession(
+          data.sessionId,
+          data.grade,
+          data.bookIds
+        );
+
+        // Generate and set system prompt for the session
+        const systemPrompt = await generateSystemPrompt(data.sessionId);
+        conversationManager.setSystemPrompt(data.sessionId, systemPrompt);
+
+        console.log(
+          `Created session ${data.sessionId} for grade "${data.grade}" child and bookIds ${data.bookIds}`
+        );
+        console.log(`System prompt: ${systemPrompt}`);
+
         return;
       }
 
@@ -72,36 +144,43 @@ wss.on("connection", (ws) => {
         currentSessionId &&
         (data.type === "message" || data.type === "photo")
       ) {
-        const conversation = conversations.get(currentSessionId);
+        const session = conversationManager.getSession(currentSessionId);
+        if (!session || !session.systemPrompt) {
+          throw new Error("Session not initialized properly");
+        }
+
+        const messages: ChatCompletionMessageParam[] = [
+          { role: "system", content: session.systemPrompt },
+        ];
 
         if (data.type === "message") {
           // Handle text message
-          conversation.push({
+          messages.push({
             role: "user",
             content: data.text,
           });
         } else if (data.type === "photo") {
           // Handle photo message
-          conversation.push({
+          messages.push({
             role: "user",
             content: [
               {
                 type: "image_url",
                 image_url: {
                   url: data.data,
-                },
+                } as { url: string },
               },
               {
                 type: "text",
                 text: "Please analyze this photo",
               },
-            ],
+            ] as any,
           });
         }
 
         const response = await openai.chat.completions.create({
           model: "gpt-4o",
-          messages: conversation,
+          messages,
           temperature: 0.7,
         });
 
@@ -110,18 +189,12 @@ wss.on("connection", (ws) => {
         // Parse the AI response into the specified format
         const parsedResponse = parseResponse(aiResponse);
 
-        // Add AI response to conversation
-        conversation.push({
-          role: "assistant",
-          content: aiResponse,
-        });
-
         // Send parsed response as JSON
         ws.send(
           JSON.stringify({
             type: parsedResponse.type,
             text: parsedResponse.text,
-            action: parsedResponse.action
+            action: parsedResponse.action,
           })
         );
       }

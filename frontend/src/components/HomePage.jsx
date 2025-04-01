@@ -31,7 +31,14 @@ const HomePage = () => {
 
     ws.onopen = () => {
       console.log("WebSocket connection established");
-      ws.send(JSON.stringify({ type: "session", sessionId }));
+      ws.send(
+        JSON.stringify({
+          type: "session",
+          sessionId,
+          grade: "Class 1",
+          bookIds: [100],
+        })
+      );
       setMessages([
         {
           type: "mascot",

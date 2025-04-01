@@ -49,6 +49,15 @@ const CameraComponent = ({ onCapture, onClose }) => {
     }
   };
 
+  const handleClose = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraReady(false);
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
       <div className="relative bg-transparent p-6 rounded-2xl shadow-lg w-full h-full m-4">
@@ -69,7 +78,7 @@ const CameraComponent = ({ onCapture, onClose }) => {
         </div>
         <div className="absolute flex flex-row bottom-8 justify-end gap-4 w-full px-8 left-0">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-6 rounded-full text-lg font-medium transition-colors"
           >
             Cancel
