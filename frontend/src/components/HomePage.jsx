@@ -35,8 +35,8 @@ const HomePage = () => {
         JSON.stringify({
           type: "session",
           sessionId,
-          grade: "Class 1",
-          bookIds: [100],
+          grade: "1st Grade",
+          bookIds: [1],
         })
       );
       setMessages([

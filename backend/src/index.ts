@@ -4,12 +4,44 @@ import { WebSocketServer } from "ws";
 import OpenAI from "openai";
 import ConversationManager from "./ConversationManager";
 import { loadTeacherPersona } from "./TeacherPersonaLoader";
-import { loadBookFeatures } from "./PedagogicalKnowledgeLoader";
-import { loadPedagogicalKnowledgeForBookFeature } from "./PedagogicalKnowledgeLoader";
+import { loadBookFeatures, loadPedagogicalKnowledgeForBookFeature } from "./PedagogicalKnowledgeLoader";
 import { ChatCompletionMessageParam } from "openai/resources/chat";
 import parseResponse from "./utils/parseResponse";
+import { Database, open } from "sqlite";
+import sqlite3 from "sqlite3";
 
 dotenv.config();
+
+// Database setup
+let db: Database;
+
+async function initializeDatabase() {
+  db = await open({
+    filename: process.env.DATABASE_FILEPATH || "./admin_database.sqlite",
+    driver: sqlite3.Database,
+  });
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS teacher_personas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      grade TEXT NOT NULL,
+      persona TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS books (
+      id INTEGER PRIMARY KEY AUTOINCREMENT
+    );
+
+    CREATE TABLE IF NOT EXISTS book_features (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER,
+      subject TEXT NOT NULL,
+      name TEXT NOT NULL,
+      how_to_teach TEXT NOT NULL,
+      FOREIGN KEY (book_id) REFERENCES books(id)
+    );
+  `);
+}
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
@@ -29,13 +61,9 @@ async function generateSystemPrompt(sessionId: string): Promise<string> {
     throw new Error("Session not found");
   }
 
-  const teacherPersona = await loadTeacherPersona(sessionId);
+  const teacherPersona = await loadTeacherPersona(sessionId, db);
+  const bookFeatures = await loadBookFeatures(sessionId, db);
 
-  // Get all book features for the session's books
-  const bookFeatures = await loadBookFeatures(sessionId);
-  console.log(`Book features for session ${sessionId}:`, bookFeatures);
-
-  // Create the system prompt
   const systemPrompt = `You are a friendly and helpful AI tutor for ${
     session.grade
   } children.
@@ -106,13 +134,11 @@ wss.on("connection", (ws) => {
           throw new Error("Session not initialized properly");
         }
 
-        // Get existing messages and start with system prompt
         const messages: ChatCompletionMessageParam[] = [
           { role: "system", content: session.systemPrompt },
-          ...session.messages, // Include conversation history
+          ...session.messages,
         ];
 
-        // Create new message based on input type
         let newMessage: ChatCompletionMessageParam;
         if (data.type === "message") {
           newMessage = {
@@ -135,7 +161,6 @@ wss.on("connection", (ws) => {
           };
         }
 
-        // Add new message to history
         messages.push(newMessage);
         conversationManager.appendMessage(currentSessionId, newMessage);
 
@@ -169,7 +194,6 @@ wss.on("connection", (ws) => {
 
         let aiResponse = response.choices[0].message.content ?? "";
 
-        // Handle tool calls
         if (response.choices[0].message.tool_calls) {
           for (const toolCall of response.choices[0].message.tool_calls) {
             if (
@@ -180,7 +204,8 @@ wss.on("connection", (ws) => {
               const pedagogicalKnowledge =
                 await loadPedagogicalKnowledgeForBookFeature(
                   currentSessionId,
-                  args.bookFeature
+                  args.bookFeature,
+                  db
                 );
 
               messages.push(response.choices[0].message);
@@ -201,7 +226,6 @@ wss.on("connection", (ws) => {
           }
         }
 
-        // Add AI response to conversation history
         const assistantMessage: ChatCompletionMessageParam = {
           role: "assistant",
           content: aiResponse,
@@ -231,6 +255,11 @@ wss.on("connection", (ws) => {
 });
 
 const PORT = 8000;
-server.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
-});
+async function startServer() {
+  await initializeDatabase();
+  server.listen(PORT, () => {
+    console.log(`Server is listening on port ${PORT}`);
+  });
+}
+
+startServer().catch(console.error);

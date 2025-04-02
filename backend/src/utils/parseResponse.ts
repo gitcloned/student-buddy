@@ -5,19 +5,13 @@ export default function parseResponse(text: string): {
   text?: string;
   action?: string;
 } {
-  console.log(`Raw GPT response: "${text}"`); // Log the full raw response
+  console.log(`Raw GPT response: "${text}"`);
 
   // Trim whitespace and newlines
   let yamlText = text.trim();
 
-  // Check for YAML markdown wrappers
-  const hasYamlMarkers = /```yaml\n([\s\S]*?)\n```/.test(yamlText);
-  if (hasYamlMarkers) {
-    const match = yamlText.match(/```yaml\n([\s\S]*?)\n```/);
-    yamlText = match ? match[1].trim() : yamlText;
-    console.log(`Extracted YAML from markers: "${yamlText}"`);
-  } else if (yamlText.startsWith("---")) {
-    // Handle YAML with --- delimiters
+  // Handle YAML with --- delimiters
+  if (yamlText.startsWith("---")) {
     yamlText = yamlText
       .replace(/^---\s*\n/, "")
       .replace(/\n---\s*$/, "")
@@ -25,8 +19,9 @@ export default function parseResponse(text: string): {
     console.log(`Extracted YAML without markers: "${yamlText}"`);
   }
 
-  // Try to parse as YAML
+  // Try to parse as YAML first
   try {
+    console.log(`Attempting to parse YAML: "${yamlText}"`);
     const parsed = yaml.load(yamlText) as {
       type?: string;
       text?: string;
@@ -34,7 +29,6 @@ export default function parseResponse(text: string): {
     };
     console.log(`Parsed YAML:`, parsed);
 
-    // Validate that we have a valid type
     if (!parsed.type) {
       throw new Error("No 'type' field in YAML response");
     }
@@ -46,10 +40,43 @@ export default function parseResponse(text: string): {
     };
   } catch (e) {
     console.error(`YAML parsing failed: ${e}`);
-    // Fallback: Assume it's a plain text response if YAML parsing fails
+    // Fallback: Manually extract type, text, and action
+    const lines = yamlText.split("\n");
+    let type = "text"; // Default type
+    let text = "";
+    let action = "";
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith("type:")) {
+        type = line.replace("type:", "").trim();
+      } else if (line.startsWith("text:")) {
+        // Extract everything after "text:" as the text value
+        text = line.replace("text:", "").trim();
+        // If the text spans multiple lines, append them until we hit "action:" or end
+        for (let j = i + 1; j < lines.length; j++) {
+          const nextLine = lines[j].trim();
+          if (nextLine.startsWith("action:")) {
+            action = nextLine.replace("action:", "").trim();
+            break;
+          } else if (nextLine) {
+            text += " " + nextLine;
+          }
+        }
+      } else if (line.startsWith("action:")) {
+        action = line.replace("action:", "").trim();
+      }
+    }
+
+    // If no text was found, use the entire input as text (minus type/action lines)
+    if (!text && !action) {
+      text = yamlText.trim();
+    }
+
     return {
-      type: "text",
-      text: yamlText || text.trim(), // Use original text if yamlText is empty
+      type,
+      text: text || undefined,
+      action: action || undefined,
     };
   }
 }

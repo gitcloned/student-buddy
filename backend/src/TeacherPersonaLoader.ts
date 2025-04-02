@@ -1,13 +1,7 @@
 import ConversationManager from "./ConversationManager";
-import { TEACHER_PERSONA } from "./data/teacher_persona";
+import { Database } from "sqlite";
 
-interface TeacherPersona {
-  id: number;
-  grade: string;
-  persona: string;
-}
-
-export async function loadTeacherPersona(sessionId: string): Promise<string> {
+export async function loadTeacherPersona(sessionId: string, db: Database): Promise<string> {
   const conversationManager = ConversationManager.getInstance();
   const session = conversationManager.getSession(sessionId);
 
@@ -15,12 +9,14 @@ export async function loadTeacherPersona(sessionId: string): Promise<string> {
     throw new Error("Session not found");
   }
 
-  const personas: TeacherPersona[] = TEACHER_PERSONA;
+  const persona = await db.get(
+    `SELECT persona FROM teacher_personas WHERE grade = ?`,
+    session.grade
+  );
 
-  const matchingPersona = personas.find((p) => p.grade === session.grade);
-  if (!matchingPersona) {
+  if (!persona) {
     throw new Error(`No teacher persona found for grade ${session.grade}`);
   }
 
-  return matchingPersona.persona;
+  return persona.persona;
 }
