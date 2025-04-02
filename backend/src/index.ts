@@ -2,11 +2,12 @@ import * as dotenv from "dotenv";
 import * as http from "http";
 import { WebSocketServer } from "ws";
 import OpenAI from "openai";
-import * as yaml from "js-yaml";
 import ConversationManager from "./ConversationManager";
 import { loadTeacherPersona } from "./TeacherPersonaLoader";
 import { loadBookFeatures } from "./PedagogicalKnowledgeLoader";
+import { loadPedagogicalKnowledgeForBookFeature } from "./PedagogicalKnowledgeLoader";
 import { ChatCompletionMessageParam } from "openai/resources/chat";
+import parseResponse from "./utils/parseResponse";
 
 dotenv.config();
 
@@ -43,12 +44,11 @@ ${teacherPersona}
 
 You will teach the following book features:
 ${Object.entries(
-  bookFeatures
-    .reduce((acc, { feature, subject }) => {
-      if (!acc[subject]) acc[subject] = [];
-      acc[subject].push(feature);
-      return acc;
-    }, {} as Record<string, string[]>)
+  bookFeatures.reduce((acc, { feature, subject }) => {
+    if (!acc[subject]) acc[subject] = [];
+    acc[subject].push(feature);
+    return acc;
+  }, {} as Record<string, string[]>)
 )
   .map(([subject, features]) => `${subject}\n - ${features.join("\n - ")}`)
   .join("\n\n")}
@@ -73,45 +73,6 @@ text: Take a photo of speaking corner`;
   return systemPrompt;
 }
 
-// Function to parse response into standardized format
-function parseResponse(text: string): {
-  type: string;
-  text?: string;
-  action?: string;
-} {
-  console.log(`got gpt response as: ${text}`);
-  let yamlText = text;
-
-  // Check if response contains YAML markdown wrappers
-  const hasYamlMarkers = /```yaml\n([\s\S]*?)\n```/.test(text);
-
-  if (hasYamlMarkers) {
-    // Extract text between ```yaml and ```
-    const match = text.match(/```yaml\n([\s\S]*?)\n```/);
-    yamlText = match ? match[1] : text;
-  }
-
-  // Try to parse as YAML and convert to JSON
-  try {
-    const parsed = yaml.load(yamlText) as {
-      type?: string;
-      text?: string;
-      action?: string;
-    };
-    return {
-      type: parsed.type || "text",
-      text: parsed.text || yamlText,
-      action: parsed.action,
-    };
-  } catch (e) {
-    // If YAML parsing fails, return default structure with full text as response
-    return {
-      type: "text",
-      text: yamlText,
-    };
-  }
-}
-
 wss.on("connection", (ws) => {
   let currentSessionId: string | null = null;
 
@@ -121,22 +82,18 @@ wss.on("connection", (ws) => {
 
       if (data.type === "session") {
         currentSessionId = data.sessionId;
-        // Create new session with grade and book information
         conversationManager.createSession(
           data.sessionId,
           data.grade,
           data.bookIds
         );
 
-        // Generate and set system prompt for the session
         const systemPrompt = await generateSystemPrompt(data.sessionId);
         conversationManager.setSystemPrompt(data.sessionId, systemPrompt);
 
         console.log(
           `Created session ${data.sessionId} for grade "${data.grade}" child and bookIds ${data.bookIds}`
         );
-        console.log(`System prompt: ${systemPrompt}`);
-
         return;
       }
 
@@ -149,47 +106,110 @@ wss.on("connection", (ws) => {
           throw new Error("Session not initialized properly");
         }
 
+        // Get existing messages and start with system prompt
         const messages: ChatCompletionMessageParam[] = [
           { role: "system", content: session.systemPrompt },
+          ...session.messages, // Include conversation history
         ];
 
+        // Create new message based on input type
+        let newMessage: ChatCompletionMessageParam;
         if (data.type === "message") {
-          // Handle text message
-          messages.push({
+          newMessage = {
             role: "user",
             content: data.text,
-          });
-        } else if (data.type === "photo") {
-          // Handle photo message
-          messages.push({
+          };
+        } else {
+          newMessage = {
             role: "user",
             content: [
               {
                 type: "image_url",
-                image_url: {
-                  url: data.data,
-                } as { url: string },
+                image_url: { url: data.data },
               },
               {
                 type: "text",
                 text: "Please analyze this photo",
               },
             ] as any,
-          });
+          };
         }
+
+        // Add new message to history
+        messages.push(newMessage);
+        conversationManager.appendMessage(currentSessionId, newMessage);
 
         const response = await openai.chat.completions.create({
           model: "gpt-4o",
           messages,
-          temperature: 0.7,
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "loadPedagogicalKnowledgeForBookFeature",
+                description:
+                  "Load pedagogical knowledge about how to teach a specific book feature",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    bookFeature: {
+                      type: "string",
+                      description:
+                        "The name of the book feature to get teaching methodology for",
+                      enum: ["Speaking corner"],
+                    },
+                  },
+                  required: ["bookFeature"],
+                },
+              },
+            },
+          ],
+          tool_choice: "auto",
         });
 
-        const aiResponse = response.choices[0].message.content ?? "";
+        let aiResponse = response.choices[0].message.content ?? "";
 
-        // Parse the AI response into the specified format
+        // Handle tool calls
+        if (response.choices[0].message.tool_calls) {
+          for (const toolCall of response.choices[0].message.tool_calls) {
+            if (
+              toolCall.function.name ===
+              "loadPedagogicalKnowledgeForBookFeature"
+            ) {
+              const args = JSON.parse(toolCall.function.arguments);
+              const pedagogicalKnowledge =
+                await loadPedagogicalKnowledgeForBookFeature(
+                  currentSessionId,
+                  args.bookFeature
+                );
+
+              messages.push(response.choices[0].message);
+              messages.push({
+                role: "tool",
+                content: pedagogicalKnowledge,
+                tool_call_id: toolCall.id,
+              });
+
+              const followUpResponse = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages,
+                temperature: 0.7,
+              });
+
+              aiResponse = followUpResponse.choices[0].message.content ?? "";
+            }
+          }
+        }
+
+        // Add AI response to conversation history
+        const assistantMessage: ChatCompletionMessageParam = {
+          role: "assistant",
+          content: aiResponse,
+        };
+        conversationManager.appendMessage(currentSessionId, assistantMessage);
+
         const parsedResponse = parseResponse(aiResponse);
 
-        // Send parsed response as JSON
         ws.send(
           JSON.stringify({
             type: parsedResponse.type,

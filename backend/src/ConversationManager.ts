@@ -1,8 +1,11 @@
+import { ChatCompletionMessageParam } from "openai/resources/chat";
+
 interface Session {
   sessionId: string;
   grade: string;
   bookIds: number[];
   systemPrompt?: string;
+  messages: ChatCompletionMessageParam[]; // Add message history
 }
 
 class ConversationManager {
@@ -21,7 +24,12 @@ class ConversationManager {
   }
 
   public createSession(sessionId: string, grade: string, bookIds: number[]): void {
-    this.sessions.set(sessionId, { sessionId, grade, bookIds });
+    this.sessions.set(sessionId, { 
+      sessionId, 
+      grade, 
+      bookIds,
+      messages: [] // Initialize empty message array
+    });
   }
 
   public getSession(sessionId: string): Session | undefined {
@@ -34,6 +42,21 @@ class ConversationManager {
       session.systemPrompt = systemPrompt;
       this.sessions.set(sessionId, session);
     }
+  }
+
+  // New method to append messages
+  public appendMessage(sessionId: string, message: ChatCompletionMessageParam): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.messages.push(message);
+      this.sessions.set(sessionId, session);
+    }
+  }
+
+  // New method to get message history
+  public getMessages(sessionId: string): ChatCompletionMessageParam[] {
+    const session = this.sessions.get(sessionId);
+    return session ? session.messages : [];
   }
 }
 
