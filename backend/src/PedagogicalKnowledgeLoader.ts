@@ -56,5 +56,6 @@ export async function loadPedagogicalKnowledgeForBookFeature(
     );
   }
 
+  console.log(`got PK for feature: ${bookFeature}: ${feature.how_to_teach}`);
   return feature.how_to_teach;
 }

@@ -5,6 +5,7 @@ interface Session {
   grade: string;
   bookIds: number[];
   systemPrompt?: string;
+  featureMap?: string[];
   messages: ChatCompletionMessageParam[]; // Add message history
 }
 
@@ -40,6 +41,14 @@ class ConversationManager {
     const session = this.sessions.get(sessionId);
     if (session) {
       session.systemPrompt = systemPrompt;
+      this.sessions.set(sessionId, session);
+    }
+  }
+
+  public setFeatureMap(sessionId: string, featureMap: string[]): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.featureMap = featureMap;
       this.sessions.set(sessionId, session);
     }
   }

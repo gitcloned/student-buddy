@@ -272,10 +272,10 @@ app.post("/api/books/:bookId/features", async (req: Request, res: Response) => {
 
 // PUT update an existing feature
 app.put("/api/features/:id", async (req: Request, res: Response) => {
-  const { subject, name, howToTeach } = req.body;
+  const { subject, name, how_to_teach } = req.body;
   const featureId = req.params.id;
 
-  if (!subject || !name || !howToTeach) {
+  if (!subject || !name || !how_to_teach) {
     res
       .status(400)
       .json({ error: "Subject, name, and howToTeach are required" });
@@ -285,7 +285,7 @@ app.put("/api/features/:id", async (req: Request, res: Response) => {
   try {
     const result = await db.run(
       "UPDATE book_features SET subject = ?, name = ?, how_to_teach = ? WHERE id = ?",
-      [subject, name, howToTeach, featureId]
+      [subject, name, how_to_teach, featureId]
     );
 
     if (result.changes === 0) {
@@ -297,7 +297,7 @@ app.put("/api/features/:id", async (req: Request, res: Response) => {
       id: parseInt(featureId),
       subject,
       name,
-      how_to_teach: howToTeach,
+      how_to_teach: how_to_teach,
     });
   } catch (error) {
     console.error("Error updating feature:", error);

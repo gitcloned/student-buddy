@@ -14,15 +14,23 @@ const HomePage = () => {
   const [sessionId] = useState(() => Math.random().toString(36).substring(2));
   const chatContainerRef = useRef(null);
   const audioRef = useRef(new Audio(dropSound));
+  const audioPlayerRef = useRef(null);
 
   const synthesis = window.speechSynthesis;
 
-  const speakText = useCallback((text) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = synthesis.getVoices();
-    utterance.voice = voices.find((voice) => voice.name === "Google हिन्दी");
-    synthesis.cancel();
-    synthesis.speak(utterance);
+  const speakText = useCallback((text, ws) => {
+    // const utterance = new SpeechSynthesisUtterance(text);
+    // const voices = synthesis.getVoices();
+    // utterance.voice = voices.find((voice) => voice.name === "Google हिन्दी");
+    // synthesis.cancel();
+    // synthesis.speak(utterance);
+
+    ws.send(
+      JSON.stringify({
+        type: "generate-audio",
+        text,
+      })
+    );
   }, []);
 
   useEffect(() => {
@@ -55,15 +63,57 @@ const HomePage = () => {
 
       if (data.type === "text") {
         setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
-        speakText(data.text);
+        speakText(data.text, ws);
       } else if (data.type === "action") {
         if (data.action === "take_photo") {
           setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
-          speakText(data.text);
+          speakText(data.text, ws);
           setShowCamera(true);
         }
       } else if (data.type === "error") {
         console.error("Error:", data.message);
+      } else if (data.type === "audio") {
+        if (audioPlayerRef.current) {
+          try {
+            // Convert the Buffer (array of bytes) to a Blob
+            const audioBlob = new Blob([new Uint8Array(data.audio.data)], {
+              type: "audio/mp3",
+            });
+            // Create a URL for the Blob
+            const audioUrl = URL.createObjectURL(audioBlob);
+            // Set the audio element's src to the Blob URL
+            audioPlayerRef.current.src = audioUrl;
+
+            // Play the audio
+            audioPlayerRef.current
+              .play()
+              .then(() => console.log("Audio playing successfully"))
+              .catch((error) => {
+                console.error("Audio playback error:", error);
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    type: "system",
+                    text: "Error playing audio",
+                  },
+                ]);
+              });
+
+            // Clean up the Blob URL when the audio finishes playing
+            audioPlayerRef.current.onended = () => {
+              URL.revokeObjectURL(audioUrl);
+            };
+          } catch (error) {
+            console.error("Audio setup error:", error);
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: "system",
+                text: "Error setting up audio",
+              },
+            ]);
+          }
+        }
       }
     };
 
@@ -156,6 +206,7 @@ const HomePage = () => {
       />
       <div className="relative z-10 w-full h-full">
         <div className="relative w-full h-full flex flex-row rounded-2xl">
+          <audio ref={audioPlayerRef} hidden />
           <div className="left-4 bottom-4 flex items-center w-[30vw] mt-30">
             <img
               src={mascot}

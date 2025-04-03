@@ -62,6 +62,7 @@ const BookForm: React.FC = () => {
   // Add or update a feature
   const handleFeatureSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     
     if (!currentFeature.subject || !currentFeature.name || !currentFeature.how_to_teach) {
       setError('All feature fields are required');

@@ -9,6 +9,7 @@ import { ChatCompletionMessageParam } from "openai/resources/chat";
 import parseResponse from "./utils/parseResponse";
 import { Database, open } from "sqlite";
 import sqlite3 from "sqlite3";
+import { generateAudio } from "./utils/generateAudio";
 
 dotenv.config();
 
@@ -55,7 +56,7 @@ const openai = new OpenAI({
 
 const conversationManager = ConversationManager.getInstance();
 
-async function generateSystemPrompt(sessionId: string): Promise<string> {
+async function fetchSessionRelatedSettings(sessionId: string): Promise<{ systemPrompt: string; featureMap: string[] }> {
   const session = conversationManager.getSession(sessionId);
   if (!session) {
     throw new Error("Session not found");
@@ -64,13 +65,15 @@ async function generateSystemPrompt(sessionId: string): Promise<string> {
   const teacherPersona = await loadTeacherPersona(sessionId, db);
   const bookFeatures = await loadBookFeatures(sessionId, db);
 
+  const featureMap = [...new Set(bookFeatures.map(f => f.feature))];
+
   const systemPrompt = `You are a friendly and helpful AI tutor for ${
     session.grade
   } children.
 
 ${teacherPersona}
 
-You will teach the following book features:
+You will teach the following book features, for which child will share the image from a book:
 ${Object.entries(
   bookFeatures.reduce((acc, { feature, subject }) => {
     if (!acc[subject]) acc[subject] = [];
@@ -81,7 +84,7 @@ ${Object.entries(
   .map(([subject, features]) => `${subject}\n - ${features.join("\n - ")}`)
   .join("\n\n")}
 
-As a child shares what they want to learn, use the appropriate teaching methodology for that feature.
+As a child shares what they want to learn, fetch the appropriate teaching methodology for that feature.
 
 Reply format
 ---
@@ -98,7 +101,7 @@ type: action
 action: take_photo
 text: Take a photo of speaking corner`;
 
-  return systemPrompt;
+  return { systemPrompt, featureMap };
 }
 
 wss.on("connection", (ws) => {
@@ -116,13 +119,19 @@ wss.on("connection", (ws) => {
           data.bookIds
         );
 
-        const systemPrompt = await generateSystemPrompt(data.sessionId);
+        const { systemPrompt, featureMap } = await fetchSessionRelatedSettings(data.sessionId);
         conversationManager.setSystemPrompt(data.sessionId, systemPrompt);
+        conversationManager.setFeatureMap(data.sessionId, featureMap);
 
         console.log(
           `Created session ${data.sessionId} for grade "${data.grade}" child and bookIds ${data.bookIds}`
         );
         return;
+      }
+
+      if (data.type === "generate-audio") {
+        const audio = await generateAudio(data.text, 1, data.voiceName);
+        ws.send(JSON.stringify({ type: "audio", audio }));
       }
 
       if (
@@ -181,7 +190,7 @@ wss.on("connection", (ws) => {
                       type: "string",
                       description:
                         "The name of the book feature to get teaching methodology for",
-                      enum: ["Speaking corner"],
+                      enum: session.featureMap,
                     },
                   },
                   required: ["bookFeature"],
