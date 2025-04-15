@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mascot from "../assets/mascot.webp";
+import { Undo2, Upload } from "lucide-react"
 
 const CameraComponent = ({ onCapture, onClose }) => {
   const videoRef = useRef(null);
   const photoRef = useRef(null);
   const streamRef = useRef(null);
+  const fileInputRef = useRef(null); // Ref for file input
   const [isCameraReady, setIsCameraReady] = useState(false);
 
   useEffect(() => {
@@ -58,6 +60,29 @@ const CameraComponent = ({ onCapture, onClose }) => {
     onClose();
   };
 
+  const handleUpload = (event) => {
+    const file = event.target.files[0];
+    if (file && (file.type === "image/png" || file.type === "image/jpeg")) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const photoData = reader.result; // Base64 data URL
+        onCapture(photoData);
+      };
+      reader.onerror = () => {
+        console.error("Error reading file");
+      };
+      reader.readAsDataURL(file);
+    } else {
+      console.error("Please select a PNG or JPEG image");
+    }
+  };
+
+  const openFilePicker = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
       <div className="relative bg-transparent p-6 rounded-2xl shadow-lg w-full h-full m-4">
@@ -81,8 +106,21 @@ const CameraComponent = ({ onCapture, onClose }) => {
             onClick={handleClose}
             className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-6 rounded-full text-lg font-medium transition-colors"
           >
-            Cancel
+            <Undo2 className="h-6 w-6" />
           </button>
+          <button
+            onClick={openFilePicker}
+            className="bg-yellow-500 shadow-lg ring-4 ring-yellow-300 p-4 rounded-full text-lg font-medium flex items-center justify-center "
+          >
+            <Upload className="h-6 w-6" />
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/png,image/jpeg"
+            onChange={handleUpload}
+            className="hidden"
+          />
           <button
             onClick={capturePhoto}
             disabled={!isCameraReady}
@@ -114,12 +152,12 @@ const CameraComponent = ({ onCapture, onClose }) => {
         </div>
 
         <div className="absolute left-4 bottom-4 flex items-center w-[10vw] mt-30">
-            <img
-              src={mascot}
-              alt="Study Buddy Mascot"
-              className="w-[30vw] object-contain"
-            />
-          </div>
+          <img
+            src={mascot}
+            alt="Study Buddy Mascot"
+            className="w-[30vw] object-contain"
+          />
+        </div>
       </div>
     </div>
   );

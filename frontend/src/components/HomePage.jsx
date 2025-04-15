@@ -44,7 +44,7 @@ const HomePage = () => {
           type: "session",
           sessionId,
           grade: "1st Grade",
-          bookIds: [1,2,3],
+          bookIds: [1, 2, 3],
         })
       );
       setMessages([
@@ -63,16 +63,18 @@ const HomePage = () => {
 
       if (data.type === "text") {
         setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
-        speakText(data.text, ws);
+        if (!data.audio) speakText(data.text, ws);
       } else if (data.type === "action") {
         if (data.action === "take_photo") {
           setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
-          speakText(data.text, ws);
+          if (!data.audio) speakText(data.text, ws);
           setShowCamera(true);
         }
       } else if (data.type === "error") {
         console.error("Error:", data.message);
-      } else if (data.type === "audio") {
+      }
+
+      if (data.type === "audio" || data.audio) {
         if (audioPlayerRef.current) {
           try {
             // Convert the Buffer (array of bytes) to a Blob
@@ -273,6 +275,24 @@ const HomePage = () => {
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && inputMessage.trim()) {
+                    setMessages((prev) => [
+                      ...prev,
+                      { type: "user", text: inputMessage },
+                    ]);
+                    if (socket) {
+                      socket.send(
+                        JSON.stringify({
+                          type: "message",
+                          sessionId,
+                          text: inputMessage,
+                        })
+                      );
+                    }
+                    setInputMessage(""); // Clear the input after sending
+                  }
+                }}
                 placeholder="Type your message..."
                 className="flex-1 p-2 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 bg-white"
               />
