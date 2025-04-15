@@ -44,7 +44,7 @@ const HomePage = () => {
           type: "session",
           sessionId,
           grade: "1st Grade",
-          bookIds: [1],
+          bookIds: [1,2,3],
         })
       );
       setMessages([
@@ -274,7 +274,7 @@ const HomePage = () => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Type your message..."
-                className="flex-1 p-2 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 hidden"
+                className="flex-1 p-2 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 bg-white"
               />
               <button
                 onClick={() => {

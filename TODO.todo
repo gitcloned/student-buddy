@@ -1,0 +1,16 @@
+Todos:
+    ☐ Show some loading bubble while AI is replying
+    ☐ Error handling and some message display when error occurs
+    ☐ Show text when audio is ready
+    ✔ What should be the khanamigo prompt @done(25-04-04 19:49)
+    ✔ There are ``` chars at end of the text @done(25-04-04 19:49)
+    ✔ System prompt to be part of admin as tutor persona @done(25-04-04 19:49)
+    ☐ How can agent learn over time and personalise for the child's learning
+    ✔ What could be khanamigo system prompt @done(25-04-04 19:49)
+    ☐ Text to speak will not always be the text emitted by GPT. Either GPT should emit 2 fields, text and response. Text is to speak, and response is the actual response, which could be a pie, latex, mermaid, json etc.
+    ☐ Pick child profile and along with it books he has
+    ☐ Versioning of prompts
+
+Usecases:
+    ☐ Math Homework assistance @started(25-04-04 20:32)
+    

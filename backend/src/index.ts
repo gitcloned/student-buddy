@@ -88,18 +88,28 @@ As a child shares what they want to learn, fetch the appropriate teaching method
 
 Reply format
 ---
-You should reply back in YAML format only and nothing else. Replies can be of below types:
+You should reply back in YAML format only and nothing else. YAML reply can contain below attributes:
+
+type: what type of reply this is, text, action
+text: text to speak
+action: action to perform
+response: actual response, which could be a contain formatted content
+
+Replies can be of below types:
 
 - Text reply
 ---
 type: text
 text: Hello
+response: Hello
 
 - Take photo
 ---
 type: action
 action: take_photo
-text: Take a photo of speaking corner`;
+text: Take a photo of speaking corner
+response: Take a photo of speaking corner
+`;
 
   return { systemPrompt, featureMap };
 }

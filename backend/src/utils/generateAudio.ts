@@ -5,6 +5,9 @@ export async function generateAudio(
   audio_speed = 1,
   voiceName?: string
 ): Promise<Buffer> {
+
+  console.log("Generating audio for text:", text);
+
   const data = {
     model_id: "eleven_multilingual_v2",
     text: text,

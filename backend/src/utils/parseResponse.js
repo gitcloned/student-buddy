@@ -14,6 +14,22 @@ function parseResponse(text) {
             .trim();
         console.log("Extracted YAML without markers: \"".concat(yamlText, "\""));
     }
+
+    if (yamlText.startsWith("```yaml")) {
+        yamlText = yamlText
+            .replace(/^```yaml\s*\n?/, "")
+    }
+
+    if (yamlText.startsWith("```")) {
+        yamlText = yamlText
+            .replace(/^```\s*\n?/, "")
+    }
+
+    if (yamlText.endsWith("```")) {
+        yamlText = yamlText
+            .replace(/```\s*$/, "")
+    }
+
     // Try to parse as YAML first
     try {
         console.log("Attempting to parse YAML: \"".concat(yamlText, "\""));
@@ -63,6 +79,11 @@ function parseResponse(text) {
         if (!text_1 && !action) {
             text_1 = yamlText.trim();
         }
+
+        if (text_1.endsWith("```")) {
+            text_1 = text_1.slice(0, -3);
+        }
+
         return {
             type: type,
             text: text_1 || undefined,

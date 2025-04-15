@@ -63,6 +63,9 @@ export default function parseResponse(text: string): {
             text += " " + nextLine;
           }
         }
+
+        text = text.replace("```", "");
+
       } else if (line.startsWith("action:")) {
         action = line.replace("action:", "").trim();
       }
