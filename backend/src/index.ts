@@ -258,6 +258,7 @@ wss.on("connection", (ws) => {
             type: parsedResponse.type,
             text: parsedResponse.text,
             action: parsedResponse.action,
+            audio: await generateAudio(parsedResponse.text || "")
           })
         );
       }
