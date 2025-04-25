@@ -6,6 +6,7 @@ import PersonaList from './pages/personas/PersonaList';
 import PersonaForm from './pages/personas/PersonaForm';
 import BooksList from './pages/books/BooksList';
 import BookForm from './pages/books/BookForm';
+import ChalkboardTypingEffect from './pages/pocs/ChalkboardTest';
 
 const App: React.FC = () => {
   return (
@@ -19,6 +20,7 @@ const App: React.FC = () => {
           <Route path="/books" element={<BooksList />} />
           <Route path="/books/new" element={<BookForm />} />
           <Route path="/books/:id" element={<BookForm />} />
+          <Route path="/tests/chalkboard" element={<ChalkboardTypingEffect />} />
         </Routes>
       </Layout>
     </Router>

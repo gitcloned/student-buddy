@@ -1,7 +1,7 @@
 Todos:
     ☐ Show some loading bubble while AI is replying
     ☐ Error handling and some message display when error occurs
-    ☐ Show text when audio is ready
+    ✔ Show text when audio is ready @done(25-04-16 12:12)
     ✔ What should be the khanamigo prompt @done(25-04-04 19:49)
     ✔ There are ``` chars at end of the text @done(25-04-04 19:49)
     ✔ System prompt to be part of admin as tutor persona @done(25-04-04 19:49)
@@ -10,7 +10,19 @@ Todos:
     ☐ Text to speak will not always be the text emitted by GPT. Either GPT should emit 2 fields, text and response. Text is to speak, and response is the actual response, which could be a pie, latex, mermaid, json etc.
     ☐ Pick child profile and along with it books he has
     ☐ Versioning of prompts
+    ☐ Use litellm or agent runner that was built
+    ☐ Book feature or any pedagogy extends from type pedagogy, each pedagogy has its own tools. For example math homework can have diagram builder 
+
+UI/Experience
+    ☐ Better indian speech. 11 labs voice speaks = very bad
+        ☐ Convert math symbols to speakable text - check library or code
+    ☐ Sketch library
+    ☐ Diagram library integration based on book feature pedagogy
 
 Usecases:
     ☐ Math Homework assistance @started(25-04-04 20:32)
-    
+        ✔ Basic version @done(25-04-16 12:13)
+        ✔ Can I give something on paper and go step by step with that child @started(25-04-25 19:17) @done(25-04-25 19:17) @lasted(36s)
+        ☐ Can we personalise for each child
+            ☐ We need to have LO graph, and CLOKL (child LO knowledge level)
+            
