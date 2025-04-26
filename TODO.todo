@@ -33,4 +33,7 @@ Usecases:
 
 Chalkboard:
     ☐ Prompt should understand well what to use chalkboard for. Right now it misses a lot of times
+
+Teacher:
+    ☐ Separate teacherPersona as teachers and teacherStyle
             

@@ -7,7 +7,7 @@ function App() {
   return (
     // <div className="bg-[#FEFFB4] bg-grey-100 w-full h-full p-2 pt-4 pb-4"></div>
     <div className="bg-white w-full h-full p-2 pt-4 pb-4">
-      <HomePage />
+      <HomePage grade="1st Grade" bookIds={[1, 2, 3]} />
     </div>
   )
 }

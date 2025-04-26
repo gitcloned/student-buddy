@@ -6,8 +6,10 @@ import background from "../assets/classroom-background-2.jpg";
 import dropSound from "../assets/drop_sound.mp3";
 import CameraComponent from "./CameraComponent";
 import Chalkboard from "./Chalkboard";
+import Session from "../models/Session";
+import { generateGreeting } from "../utils/generateGreeting";
 
-const HomePage = () => {
+const HomePage = ({ grade, bookIds }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [socket, setSocket] = useState(null);
@@ -15,20 +17,15 @@ const HomePage = () => {
   const [isPulsing, setIsPulsing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [chalkboardLines, setChalkboardLines] = useState([]);
-  const [sessionId] = useState(() => Math.random().toString(36).substring(2));
+  const [session, setSession] = useState(null);
   const chatContainerRef = useRef(null);
   const audioRef = useRef(new Audio(dropSound));
   const audioPlayerRef = useRef(null);
+  const hasInitialized = useRef(false);
 
   const synthesis = window.speechSynthesis;
 
   const speakText = useCallback((text, ws) => {
-    // const utterance = new SpeechSynthesisUtterance(text);
-    // const voices = synthesis.getVoices();
-    // utterance.voice = voices.find((voice) => voice.name === "Google हिन्दी");
-    // synthesis.cancel();
-    // synthesis.speak(utterance);
-
     ws.send(
       JSON.stringify({
         type: "generate-audio",
@@ -38,110 +35,129 @@ const HomePage = () => {
   }, []);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000");
-    setSocket(ws);
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+    async function initializeSession() {
+      try {
+        const createdSession = await Session.create(grade, bookIds);
+        setSession(createdSession);
+        const ws = new WebSocket("ws://localhost:8000");
+        setSocket(ws);
 
-    ws.onopen = () => {
-      console.log("WebSocket connection established");
-      ws.send(
-        JSON.stringify({
-          type: "session",
-          sessionId,
-          grade: "1st Grade",
-          bookIds: [1, 2, 3],
-        })
-      );
-      setMessages([
-        {
-          type: "mascot",
-          text: "Hi! I'm your study buddy. How can I help you today?",
-        },
-      ]);
-      // speakText("Hi! I'm your study buddy. How can I help you today?");
-    };
+        ws.onopen = () => {
+          console.log("WebSocket connection established");
+          ws.send(
+            JSON.stringify({
+              type: "session",
+              sessionId: createdSession.sessionId,
+              grade: createdSession.grade,
+              bookIds: createdSession.bookIds,
+            })
+          );
+          // setMessages([
+          //   {
+          //     type: "mascot",
+          //     text: "Hi! I'm your study buddy. How can I help you today?",
+          //   },
+          // ]);
+          // speakText("Hi! I'm your study buddy. How can I help you today?");
+        };
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
 
-      console.log(data);
+          console.log(data);
 
-      if (data.type === "session-created") {
-        setMessages((prev) => [...prev, { type: "mascot", text: data.session.teacherPersona.name }]);
-      }
-
-      if (data.type === "text") {
-        setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
-        if (!data.audio) speakText(data.text, ws);
-      } else if (data.type === "action") {
-        if (data.action === "take_photo") {
-          setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
-          if (!data.audio) speakText(data.text, ws);
-          setShowCamera(true);
-        }
-      } else if (data.type === "error") {
-        console.error("Error:", data.message);
-      }
-
-      if (data.type === "audio" || data.audio) {
-        if (audioPlayerRef.current) {
-          try {
-            // Convert the Buffer (array of bytes) to a Blob
-            const audioBlob = new Blob([new Uint8Array(data.audio.data)], {
-              type: "audio/mp3",
+          if (data.type === "session-created") {
+            const greeting = generateGreeting("", { 
+              teacherLanguage: data.session.teacherPersona.language, 
+              teacherStyle: data.session.teacherPersona.tone
             });
-            // Create a URL for the Blob
-            const audioUrl = URL.createObjectURL(audioBlob);
-            // Set the audio element's src to the Blob URL
-            audioPlayerRef.current.src = audioUrl;
+            setMessages((prev) => [...prev, { 
+              type: "mascot", 
+              text: greeting
+            }]);
+            speakText(greeting, ws);
+          }
 
-            // Play the audio
-            audioPlayerRef.current
-              .play()
-              .then(() => console.log("Audio playing successfully"))
-              .catch((error) => {
-                console.error("Audio playback error:", error);
+          if (data.type === "text") {
+            setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
+            if (!data.audio) speakText(data.text, ws);
+          } else if (data.type === "action") {
+            if (data.action === "take_photo") {
+              setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
+              if (!data.audio) speakText(data.text, ws);
+              setShowCamera(true);
+            }
+          } else if (data.type === "error") {
+            console.error("Error:", data.message);
+          }
+
+          if (data.type === "audio" || data.audio) {
+            if (audioPlayerRef.current) {
+              try {
+                // Convert the Buffer (array of bytes) to a Blob
+                const audioBlob = new Blob([new Uint8Array(data.audio.data)], {
+                  type: "audio/mp3",
+                });
+                // Create a URL for the Blob
+                const audioUrl = URL.createObjectURL(audioBlob);
+                // Set the audio element's src to the Blob URL
+                audioPlayerRef.current.src = audioUrl;
+
+                // Play the audio
+                audioPlayerRef.current
+                  .play()
+                  .then(() => console.log("Audio playing successfully"))
+                  .catch((error) => {
+                    console.error("Audio playback error:", error);
+                    setMessages((prev) => [
+                      ...prev,
+                      {
+                        type: "system",
+                        text: "Error playing audio",
+                      },
+                    ]);
+                  });
+
+                // Clean up the Blob URL when the audio finishes playing
+                audioPlayerRef.current.onended = () => {
+                  URL.revokeObjectURL(audioUrl);
+                };
+              } catch (error) {
+                console.error("Audio setup error:", error);
                 setMessages((prev) => [
                   ...prev,
                   {
                     type: "system",
-                    text: "Error playing audio",
+                    text: "Error setting up audio",
                   },
                 ]);
-              });
-
-            // Clean up the Blob URL when the audio finishes playing
-            audioPlayerRef.current.onended = () => {
-              URL.revokeObjectURL(audioUrl);
-            };
-          } catch (error) {
-            console.error("Audio setup error:", error);
-            setMessages((prev) => [
-              ...prev,
-              {
-                type: "system",
-                text: "Error setting up audio",
-              },
-            ]);
+              }
+            }
           }
-        }
+
+          // Chalkboard: accumulate lines
+          if (data.write) {
+            setChalkboardLines((prev) => [...prev, data.write]);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          setMessages((prev) => [
+            ...prev,
+            { type: "system", text: "Connection error. Please try again." },
+          ]);
+        };
+
+        return () => ws.close();
+      } catch (e) {
+        console.error("Session initialization failed", e);
       }
-
-      // Chalkboard: accumulate lines
-      if (data.write) {
-        setChalkboardLines((prev) => [...prev, data.write]);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setMessages((prev) => [
-        ...prev,
-        { type: "system", text: "Connection error. Please try again." },
-      ]);
-    };
-
-    return () => ws.close();
-  }, [sessionId, speakText]);
+    }
+    initializeSession();
+  }, [grade, bookIds]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -165,7 +181,7 @@ const HomePage = () => {
         socket.send(
           JSON.stringify({
             type: "message",
-            sessionId,
+            sessionId: session.sessionId,
             text: speechResult,
           })
         );
@@ -184,7 +200,7 @@ const HomePage = () => {
     };
 
     window.recognition = recognition;
-  }, [socket, sessionId]);
+  }, [socket, session]);
 
   const handleStartListening = (e) => {
     try {
@@ -268,7 +284,7 @@ const HomePage = () => {
                       socket.send(
                         JSON.stringify({
                           type: "photo",
-                          sessionId,
+                          sessionId: session.sessionId,
                           data: photoData,
                         })
                       );
@@ -300,7 +316,7 @@ const HomePage = () => {
                         socket.send(
                           JSON.stringify({
                             type: "message",
-                            sessionId,
+                            sessionId: session.sessionId,
                             text: inputMessage,
                           })
                         );

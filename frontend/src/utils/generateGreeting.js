@@ -1,7 +1,10 @@
 // utils/greetings.js
 export const generateGreeting = (
   userName,
-  { teacherLanguage = 'hinglish', teacherStyle = 'candid' } = {}
+  {
+    teacherLanguage = 'hinglish',
+    teacherStyle = 'candid'
+  } = {}
 ) => {
   // Configuration object
   const greetingsConfig = {
@@ -142,11 +145,19 @@ export const generateGreeting = (
   const config = greetingsConfig[teacherLanguage][teacherStyle]
     || greetingsConfig.hinglish.candid;
 
-  // Construct message
+  // Randomly decide to skip timeGreeting or motivation
+  const skipTimeGreeting = Math.random() < 0.5; // 50% chance
+  const skipMotivation = Math.random() < 0.5;   // 50% chance
+
   const timeGreeting = config.timeGreetings[getTimeOfDay()];
   const mainPhrase = getRandom(config.phrases);
   const motivation = getRandom(config.motivations);
   const nameGreeting = userName ? `, ${userName}` : '';
 
-  return `${timeGreeting}${nameGreeting}!\n${mainPhrase}\n\n${motivation}`
+  let parts = [];
+  if (!skipTimeGreeting) parts.push(`${timeGreeting}${nameGreeting}!`);
+  parts.push(mainPhrase);
+  if (!skipMotivation) parts.push(`\n${motivation}`);
+
+  return parts.join('\n');
 };
