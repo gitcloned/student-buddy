@@ -25,7 +25,11 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS teacher_personas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       grade TEXT NOT NULL,
-      persona TEXT NOT NULL
+      persona TEXT NOT NULL,
+      language TEXT NOT NULL,
+      tone TEXT NOT NULL,
+      motivation TEXT NOT NULL,
+      humor TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS books (
@@ -76,43 +80,56 @@ app.get("/api/personas/:id", async (req: Request, res: Response) => {
 
 // POST create a new teacher persona
 app.post("/api/personas", async (req: Request, res: Response) => {
-  const { grade, persona } = req.body;
+  const { grade, persona, language, tone, motivation, humor } = req.body;
 
-  if (!grade || !persona) {
-    res.status(400).json({ error: "Grade and persona are required" });
+  if (!grade || !persona || !language || !tone || !motivation || !humor) {
+    res.status(400).json({ error: "Missing required fields" });
     return;
   }
 
   try {
     const result = await db.run(
-      "INSERT INTO teacher_personas (grade, persona) VALUES (?, ?)",
-      [grade, persona]
+      "INSERT INTO teacher_personas (grade, persona, language, tone, motivation, humor) VALUES (?, ?, ?, ?, ?, ?)",
+      grade,
+      persona,
+      language,
+      tone,
+      motivation,
+      humor
     );
-    const newPersona = { id: result.lastID, grade, persona };
+    const newPersona = await db.get(
+      "SELECT * FROM teacher_personas WHERE id = ?",
+      result.lastID
+    );
     res.status(201).json(newPersona);
   } catch (error) {
-    console.error("Error saving persona:", error);
-    res.status(500).json({ error: "Failed to save persona" });
+    console.error("Error creating persona:", error);
+    res.status(500).json({ error: "Failed to create persona" });
   }
 });
 
 // PUT update an existing teacher persona
 app.put("/api/personas/:id", async (req: Request, res: Response) => {
-  const { grade, persona } = req.body;
-  const id = req.params.id;
+  const { grade, persona, language, tone, motivation, humor } = req.body;
+
+  if (!grade || !persona || !language || !tone || !motivation || !humor) {
+    res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
 
   try {
-    const result = await db.run(
-      "UPDATE teacher_personas SET grade = ?, persona = ? WHERE id = ?",
-      [grade, persona, id]
+    await db.run(
+      "UPDATE teacher_personas SET grade = ?, persona = ?, language = ?, tone = ?, motivation = ?, humor = ? WHERE id = ?",
+      grade,
+      persona,
+      language,
+      tone,
+      motivation,
+      humor,
+      req.params.id
     );
-
-    if (result.changes === 0) {
-      res.status(404).json({ error: "Persona not found" });
-      return;
-    }
-
-    res.json({ id: parseInt(id), grade, persona });
+    const updatedPersona = await db.get("SELECT * FROM teacher_personas WHERE id = ?", req.params.id);
+    res.json(updatedPersona);
   } catch (error) {
     console.error("Error updating persona:", error);
     res.status(500).json({ error: "Failed to update persona" });

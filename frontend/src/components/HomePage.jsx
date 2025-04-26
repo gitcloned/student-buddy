@@ -65,6 +65,10 @@ const HomePage = () => {
 
       console.log(data);
 
+      if (data.type === "session-created") {
+        setMessages((prev) => [...prev, { type: "mascot", text: data.session.teacherPersona.name }]);
+      }
+
       if (data.type === "text") {
         setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
         if (!data.audio) speakText(data.text, ws);

@@ -10,6 +10,7 @@ import parseResponse from "./utils/parseResponse";
 import { Database, open } from "sqlite";
 import sqlite3 from "sqlite3";
 import { generateAudio } from "./utils/generateAudio";
+import { TeacherPersona } from "./types";
 
 dotenv.config();
 
@@ -56,33 +57,32 @@ const openai = new OpenAI({
 
 const conversationManager = ConversationManager.getInstance();
 
-async function fetchSessionRelatedSettings(sessionId: string): Promise<{ systemPrompt: string; featureMap: string[] }> {
+async function fetchSessionRelatedSettings(sessionId: string): Promise<{ systemPrompt: string; featureMap: string[]; teacherPersona: TeacherPersona }> {
   const session = conversationManager.getSession(sessionId);
   if (!session) {
     throw new Error("Session not found");
   }
 
-  const teacherPersona = await loadTeacherPersona(sessionId, db);
+  const { persona, language, tone, motivation, humor } = await loadTeacherPersona(sessionId, db);
   const bookFeatures = await loadBookFeatures(sessionId, db);
 
   const featureMap = [...new Set(bookFeatures.map(f => f.feature))];
 
-  const systemPrompt = `You are a friendly and helpful AI tutor for ${
-    session.grade
-  } children.
+  const systemPrompt = `You are a friendly and helpful AI tutor for ${session.grade
+    } children.
 
-${teacherPersona}
+${persona}
 
 You will teach the following book features, for which child will share the image from a book:
 ${Object.entries(
-  bookFeatures.reduce((acc, { feature, subject }) => {
-    if (!acc[subject]) acc[subject] = [];
-    acc[subject].push(feature);
-    return acc;
-  }, {} as Record<string, string[]>)
-)
-  .map(([subject, features]) => `${subject}\n - ${features.join("\n - ")}`)
-  .join("\n\n")}
+      bookFeatures.reduce((acc, { feature, subject }) => {
+        if (!acc[subject]) acc[subject] = [];
+        acc[subject].push(feature);
+        return acc;
+      }, {} as Record<string, string[]>)
+    )
+      .map(([subject, features]) => `${subject}\n - ${features.join("\n - ")}`)
+      .join("\n\n")}
 
 As a child shares what they want to learn, fetch the appropriate teaching methodology for that feature.
 
@@ -111,7 +111,16 @@ text: Take a photo of speaking corner
 write: 
 `;
 
-  return { systemPrompt, featureMap };
+  return {
+    systemPrompt, featureMap, teacherPersona: {
+      persona,
+      language,
+      tone,
+      motivation,
+      humor,
+      grade: session.grade
+    }
+  };
 }
 
 wss.on("connection", (ws) => {
@@ -129,13 +138,15 @@ wss.on("connection", (ws) => {
           data.bookIds
         );
 
-        const { systemPrompt, featureMap } = await fetchSessionRelatedSettings(data.sessionId);
+        const { systemPrompt, featureMap, teacherPersona } = await fetchSessionRelatedSettings(data.sessionId);
         conversationManager.setSystemPrompt(data.sessionId, systemPrompt);
         conversationManager.setFeatureMap(data.sessionId, featureMap);
+        conversationManager.setTeacherPersona(data.sessionId, teacherPersona);
 
         console.log(
           `Created session ${data.sessionId} for grade "${data.grade}" child and bookIds ${data.bookIds}`
         );
+        ws.send(JSON.stringify({ type: "session-created", session: conversationManager.getSession(data.sessionId) }));
         return;
       }
 

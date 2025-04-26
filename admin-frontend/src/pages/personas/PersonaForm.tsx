@@ -10,7 +10,11 @@ const PersonaForm: React.FC = () => {
   
   const [formData, setFormData] = useState<TeacherPersona>({
     grade: '',
-    persona: ''
+    persona: '',
+    language: 'hinglish',
+    tone: 'candid',
+    motivation: 'supportive',
+    humor: 'light'
   });
   
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -114,7 +118,72 @@ const PersonaForm: React.FC = () => {
               <option value="12th Grade">12th Grade</option>
             </select>
           </div>
-          
+          <div className="mb-4">
+            <label htmlFor="language" className="label">
+              Language
+            </label>
+            <select
+              id="language"
+              name="language"
+              value={formData.language}
+              onChange={handleChange}
+              required
+              className="input"
+            >
+              <option value="hinglish">Hinglish</option>
+              <option value="english">English</option>
+              <option value="hindi">Hindi</option>
+            </select>
+          </div>
+          <div className="mb-4">
+            <label htmlFor="tone" className="label">
+              Tone
+            </label>
+            <select
+              id="tone"
+              name="tone"
+              value={formData.tone}
+              onChange={handleChange}
+              required
+              className="input"
+            >
+              <option value="candid">Candid</option>
+              <option value="formal">Formal</option>
+            </select>
+          </div>
+          <div className="mb-4">
+            <label htmlFor="motivation" className="label">
+              Motivation
+            </label>
+            <select
+              id="motivation"
+              name="motivation"
+              value={formData.motivation}
+              onChange={handleChange}
+              required
+              className="input"
+            >
+              <option value="supportive">Supportive</option>
+              <option value="disciplinary">Disciplinary</option>
+            </select>
+          </div>
+          <div className="mb-6">
+            <label htmlFor="humor" className="label">
+              Humor
+            </label>
+            <select
+              id="humor"
+              name="humor"
+              value={formData.humor}
+              onChange={handleChange}
+              required
+              className="input"
+            >
+              <option value="light">Light</option>
+              <option value="none">None</option>
+              <option value="medium">Medium</option>
+            </select>
+          </div>
           <div className="mb-6">
             <label htmlFor="persona" className="label">
               Teacher Persona Description

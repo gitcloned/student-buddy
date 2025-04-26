@@ -19,6 +19,10 @@ UI/Experience
         ☐ Convert text: to speak:
     ☐ Sketch library
     ☐ Diagram library integration based on book feature pedagogy
+    ☐ Teacher persona changes
+        ☐ Ability to define persona as language, style in admin panel
+        ☐ Fetch the persona and pass to session object
+        ☐ Use the persona in session while talking to child
 
 Usecases:
     ☐ Math Homework assistance @started(25-04-04 20:32)
@@ -26,4 +30,7 @@ Usecases:
         ✔ Can I give something on paper and go step by step with that child @started(25-04-25 19:17) @done(25-04-25 19:17) @lasted(36s)
         ☐ Can we personalise for each child
             ☐ We need to have LO graph, and CLOKL (child LO knowledge level)
+
+Chalkboard:
+    ☐ Prompt should understand well what to use chalkboard for. Right now it misses a lot of times
             

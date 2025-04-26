@@ -1,26 +1,7 @@
 import axios from 'axios';
+import { TeacherPersona, Book, BookFeature } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
-
-// Types
-export interface TeacherPersona {
-  id?: number;
-  grade: string;
-  persona: string;
-}
-
-export interface BookFeature {
-  id: number;
-  book_id: number;
-  subject: string;
-  name: string;
-  how_to_teach: string;
-}
-
-export interface Book {
-  id: number;
-  features: BookFeature[];
-}
 
 // API client
 const apiClient = axios.create({

@@ -83,6 +83,18 @@ const PersonasList: React.FC = () => {
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Persona
                 </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Language
+                </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tone
+                </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Motivation
+                </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Humor
+                </th>
                 <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -96,6 +108,10 @@ const PersonasList: React.FC = () => {
                   <td className="py-4 px-4">
                     <div className="line-clamp-2">{persona.persona.substring(0, 100)}...</div>
                   </td>
+                  <td className="py-4 px-4 whitespace-nowrap">{persona.language}</td>
+                  <td className="py-4 px-4 whitespace-nowrap">{persona.tone}</td>
+                  <td className="py-4 px-4 whitespace-nowrap">{persona.motivation}</td>
+                  <td className="py-4 px-4 whitespace-nowrap">{persona.humor}</td>
                   <td className="py-4 px-4 whitespace-nowrap text-right">
                     <Link
                       to={`/personas/${persona.id}`}

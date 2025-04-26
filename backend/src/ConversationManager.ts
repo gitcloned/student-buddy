@@ -1,6 +1,8 @@
 import { ChatCompletionMessageParam } from "openai/resources/chat";
+import { TeacherPersona } from "./types";
 
 interface Session {
+  teacherPersona: TeacherPersona | undefined;
   sessionId: string;
   grade: string;
   bookIds: number[];
@@ -25,11 +27,12 @@ class ConversationManager {
   }
 
   public createSession(sessionId: string, grade: string, bookIds: number[]): void {
-    this.sessions.set(sessionId, { 
-      sessionId, 
-      grade, 
+    this.sessions.set(sessionId, {
+      sessionId,
+      grade,
       bookIds,
-      messages: [] // Initialize empty message array
+      messages: [],
+      teacherPersona: undefined
     });
   }
 
@@ -66,6 +69,14 @@ class ConversationManager {
   public getMessages(sessionId: string): ChatCompletionMessageParam[] {
     const session = this.sessions.get(sessionId);
     return session ? session.messages : [];
+  }
+
+  public setTeacherPersona(sessionId: string, teacherPersona: TeacherPersona): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.teacherPersona = teacherPersona;
+      this.sessions.set(sessionId, session);
+    }
   }
 }
 
