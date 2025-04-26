@@ -1,6 +1,22 @@
 import axios from "axios";
+import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 
 export async function generateAudio(
+  text: string,
+  audio_speed = 1,
+  voiceName?: string
+): Promise<Buffer> {
+
+  if (process.env.GENERATE_AUDIO_USING === "google") {
+    return generateAudioUsingGoogle(text, audio_speed, voiceName);
+  } else if (process.env.GENERATE_AUDIO_USING === "openai") {
+    return generateAudioUsingOpenAI(text, audio_speed, voiceName);
+  }
+
+  return generateAudioUsingElevenLabs(text, audio_speed, voiceName);
+}
+
+export async function generateAudioUsingElevenLabs(
   text: string,
   audio_speed = 1,
   voiceName?: string
@@ -131,11 +147,6 @@ export async function generateAudioUsingOpenAI(
   }
 }
 
-// Interface for Google Text-to-Speech API response
-interface GoogleTTSResponse {
-  audioContent: string;
-}
-
 export async function generateAudioUsingGoogle(
   text: string,
   audio_speed = 1.0,
@@ -143,55 +154,43 @@ export async function generateAudioUsingGoogle(
 ): Promise<Buffer> {
   console.log("Generating audio using Google Text-to-Speech for text:", text);
 
-  const googleApiKey = process.env.GOOGLE_TTS_API_KEY;
-  if (!googleApiKey) {
-    throw new Error("Google Text-to-Speech API key is not set in environment variables");
+  // Check if GOOGLE_APPLICATION_CREDENTIALS environment variable is set
+  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    console.warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set. Using default credentials.");
+    // You can set it programmatically here if needed:
+    // process.env.GOOGLE_APPLICATION_CREDENTIALS = '/path/to/your/service-account.json';
   }
 
-  // Google Text-to-Speech API endpoint
-  const url = "https://texttospeech.googleapis.com/v1beta1/text:synthesize";
+  try {
+    // Creates a client using Application Default Credentials
+    const client = new TextToSpeechClient();
 
-  // Default to Indian English if not specified
-  const languageCode = voiceName.startsWith("en-") ? voiceName.substring(0, 5) : "en-IN";
+    // Default to Indian English if not specified
+    const languageCode = voiceName.startsWith("en-") ? voiceName.substring(0, 5) : "en-IN";
 
-  // Request configuration
-  const config = {
-    method: "post" as const,
-    url: `${url}?key=${googleApiKey}`,
-    headers: {
-      "Content-Type": "application/json"
-    },
-    data: {
-      input: {
-        text: text
-      },
+    // Construct the request
+    const request = {
+      input: { text },
+      // Select the language and voice
       voice: {
         languageCode: languageCode,
-        name: voiceName
+        name: voiceName,
       },
+      // Select the type of audio encoding
       audioConfig: {
-        audioEncoding: "MP3",
-        effectsProfileId: [
-          "handset-class-device"
-        ],
+        audioEncoding: "MP3" as const,
+        effectsProfileId: ["handset-class-device"],
         pitch: 0,
-        speakingRate: audio_speed
-      }
-    }
-  };
+        speakingRate: audio_speed,
+      },
+    };
 
-  try {
-    // Use a generic axios call
-    const response = await axios(config);
-    
-    // Google TTS returns base64 encoded audio content in the response
-    // Use any type to bypass strict type checking
-    const responseData: any = response.data;
-    
-    if (responseData && responseData.audioContent) {
-      // Convert base64 to buffer
-      const audioBuffer = Buffer.from(responseData.audioContent, 'base64');
-      return audioBuffer;
+    // Performs the text-to-speech request
+    const [response] = await client.synthesizeSpeech(request);
+
+    if (response.audioContent) {
+      // The response's audioContent is binary
+      return Buffer.from(response.audioContent as Uint8Array);
     } else {
       throw new Error("No audio content received from Google Text-to-Speech API");
     }
