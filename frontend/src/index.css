@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+@font-face {
+    font-family: 'ChalkFont';
+    src: url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2') format('woff2');
+}
+
+.font-chalk {
+    font-family: 'ChalkFont', 'Comic Sans MS', cursive;
+    font-size: 1.5rem;
+    line-height: 1.6;
+    letter-spacing: 0.5px;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.chalk-line {
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.chalk-dust {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+    background-size: 6px 6px;
+    width: 100%;
+    height: 100%;
+    opacity: 0.4;
+}

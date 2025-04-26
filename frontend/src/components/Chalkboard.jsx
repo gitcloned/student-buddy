@@ -1,71 +1,75 @@
 import React, { useState, useEffect, useRef } from 'react';
+import chalkSoundSrc from '../assets/chalk-sound.mp3';
 
-const Chalkboard = ({ content }) => {
+// Chalkboard now takes lines (array) as prop
+const Chalkboard = ({ lines = [] }) => {
   const [displayText, setDisplayText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [currentLineIndex, setCurrentLineIndex] = useState(0);
-  const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const chalkboardRef = useRef(null);
   const cursorRef = useRef(null);
+  const audioRef = useRef(null); // Ref for the audio element
 
-  // Sound effect for chalk writing
-  const playChalkSound = () => {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(Math.random() * 100 + 800, audioContext.currentTime);
-    
-    gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.1);
-  };
+  // Track the last animated line index
+  const [lastAnimatedIdx, setLastAnimatedIdx] = useState(-1);
 
-  // Handle new content
+  // Initialize audio on mount
   useEffect(() => {
-    if (content && content !== displayText) {
-      setIsTyping(true);
-      const lines = content.split('\n');
-      let currentText = displayText;
-      let charIndex = 0;
-      
-      const typeNextChar = () => {
-        if (charIndex < content.length) {
-          const char = content[charIndex];
-          currentText += char;
-          setDisplayText(currentText);
-          
-          if (char !== ' ') {
-            playChalkSound();
-          }
-          
-          charIndex++;
-          setTimeout(typeNextChar, Math.random() * 50 + 30);
-        } else {
-          setIsTyping(false);
-        }
-      };
-      
-      typeNextChar();
+    audioRef.current = new window.Audio(chalkSoundSrc);
+    audioRef.current.loop = true;
+    audioRef.current.volume = 0.5;
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Play or pause chalk sound based on typing
+  useEffect(() => {
+    if (isTyping && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play();
+    } else if (!isTyping && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
-  }, [content]);
+  }, [isTyping]);
+
+  // Animate the last line only
+  useEffect(() => {
+    if (!lines.length) return;
+    if (lastAnimatedIdx === lines.length - 1) return; // Already animated latest
+    setIsTyping(true);
+    let charIndex = 0;
+    let currentText = '';
+    const lastLine = lines[lines.length - 1] || '';
+
+    const typeNextChar = () => {
+      if (charIndex < lastLine.length) {
+        const char = lastLine[charIndex];
+        currentText += char;
+        setDisplayText(currentText);
+        charIndex++;
+        setTimeout(typeNextChar, Math.random() * 50 + 30);
+      } else {
+        setIsTyping(false);
+        setLastAnimatedIdx(lines.length - 1);
+      }
+    };
+
+    setDisplayText('');
+    typeNextChar();
+  }, [lines]);
 
   // Cursor blinking effect
   useEffect(() => {
     if (!isTyping) return;
-    
     const interval = setInterval(() => {
       if (cursorRef.current) {
         cursorRef.current.style.opacity = cursorRef.current.style.opacity === '0' ? '1' : '0';
       }
     }, 500);
-    
     return () => clearInterval(interval);
   }, [isTyping]);
 
@@ -74,16 +78,16 @@ const Chalkboard = ({ content }) => {
     if (chalkboardRef.current) {
       chalkboardRef.current.scrollTop = chalkboardRef.current.scrollHeight;
     }
-  }, [displayText]);
+  }, [displayText, lines]);
 
+  // Render all previous lines and the animated last line
   return (
     <div 
-      className="chalkboard"
+      className="chalkboard font-chalk"
       ref={chalkboardRef}
       style={{
         backgroundColor: '#2a623d',
         color: 'white',
-        fontFamily: 'Chalk',
         padding: '20px',
         borderRadius: '10px',
         height: '100%',
@@ -91,11 +95,12 @@ const Chalkboard = ({ content }) => {
         overflowY: 'auto',
         whiteSpace: 'pre-wrap',
         boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-        fontSize: '18px',
         lineHeight: '1.5',
         position: 'relative'
       }}
     >
+      {lines.slice(0, -1).join('\n')}
+      {lines.length > 1 ? '\n' : ''}
       {displayText}
       {isTyping && (
         <span 

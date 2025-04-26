@@ -14,7 +14,7 @@ const HomePage = () => {
   const [isListening, setIsListening] = useState(false);
   const [isPulsing, setIsPulsing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [chalkboardContent, setChalkboardContent] = useState(null);
+  const [chalkboardLines, setChalkboardLines] = useState([]);
   const [sessionId] = useState(() => Math.random().toString(36).substring(2));
   const chatContainerRef = useRef(null);
   const audioRef = useRef(new Audio(dropSound));
@@ -122,8 +122,9 @@ const HomePage = () => {
         }
       }
 
+      // Chalkboard: accumulate lines
       if (data.write) {
-        setChalkboardContent(data.write);
+        setChalkboardLines((prev) => [...prev, data.write]);
       }
     };
 
@@ -219,15 +220,15 @@ const HomePage = () => {
           <audio ref={audioPlayerRef} hidden />
 
           {/* Chalkboard Section */}
-          {chalkboardContent && (
+          {chalkboardLines.length > 0 && (
             // make it full width if smaller screen
             <div className="flex-grow h-full relative md:block">
-              <Chalkboard content={chalkboardContent} />
+              <Chalkboard lines={chalkboardLines} />
             </div>
           )}
 
           {/* Mascot and Chat Section */}
-          <div className={`${chalkboardContent ? 'w-[40%] md:block hidden' : 'w-full'} flex flex-row max-w-[60%]`}>
+          <div className={`${chalkboardLines.length > 0 ? 'w-[40%] md:block hidden' : 'w-full'} flex flex-row max-w-[60%]`}>
 
             <div className="flex-grow mb-18 p-4">
               <div
@@ -364,7 +365,7 @@ const HomePage = () => {
           </div>
 
           <div className={`absolute flex items-center ${
-            chalkboardContent 
+            chalkboardLines.length > 0 
               ? "left-0 bottom-0 z-20" 
               : "left-0 bottom-0 w-[30vw] mt-30"
           }`}>
@@ -372,7 +373,7 @@ const HomePage = () => {
               src={Teacher}
               alt="Study Buddy Mascot"
               className={`${
-                chalkboardContent 
+                chalkboardLines.length > 0 
                   ? "w-[120px] h-[120px]" 
                   : "w-[30vw]"
               } object-contain transition-all duration-300`}

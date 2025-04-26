@@ -31,20 +31,47 @@ const ChalkboardTypingEffect = () => {
   // Sound effect for chalk writing
   const playChalkSound = () => {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
+
+    // 1. Create noise generator
+    const bufferSize = 2 * audioContext.sampleRate;
+    const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1; // White noise
+    }
+
+    const noise = audioContext.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    // 2. Create filter for spectral shaping
+    const bandpass = audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 2000 + Math.random() * 2000; // Randomize frequency
+    bandpass.Q.value = 1.5; // Quality factor
+
+    // 3. Create dynamic gain envelope
     const gainNode = audioContext.createGain();
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(Math.random() * 100 + 800, audioContext.currentTime);
-    
-    gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-    
-    oscillator.connect(gainNode);
+    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.15);
+
+    // 4. Create occasional "scrape" highlights
+    const lfo = audioContext.createOscillator();
+    lfo.frequency.value = 40 + Math.random() * 30;
+    const lfoGain = audioContext.createGain();
+    lfoGain.gain.value = 200 + Math.random() * 300;
+
+    // Connect nodes
+    noise.connect(bandpass);
+    bandpass.connect(gainNode);
+    lfo.connect(lfoGain);
+    lfoGain.connect(bandpass.frequency);
     gainNode.connect(audioContext.destination);
-    
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.1);
+
+    // Start and stop
+    noise.start();
+    lfo.start();
+    noise.stop(audioContext.currentTime + 0.15);
+    lfo.stop(audioContext.currentTime + 0.15);
   };
 
   // Typing effect
@@ -53,18 +80,18 @@ const ChalkboardTypingEffect = () => {
 
     if (currentLineIndex < fullText.length) {
       const line = fullText[currentLineIndex];
-      
+
       if (currentCharIndex < line.length) {
         const timer = setTimeout(() => {
           setDisplayText(prev => prev + line[currentCharIndex]);
           setCurrentCharIndex(prev => prev + 1);
-          
+
           // Play chalk sound effect for non-space characters
           if (line[currentCharIndex] !== ' ') {
             playChalkSound();
           }
         }, Math.random() * 100 + 50); // Random typing speed for more natural effect
-        
+
         return () => clearTimeout(timer);
       } else {
         // Move to next line
@@ -73,7 +100,7 @@ const ChalkboardTypingEffect = () => {
           setCurrentLineIndex(prev => prev + 1);
           setCurrentCharIndex(0);
         }, 500); // Pause at the end of line
-        
+
         return () => clearTimeout(timer);
       }
     } else {
@@ -84,13 +111,13 @@ const ChalkboardTypingEffect = () => {
   // Cursor blinking effect
   useEffect(() => {
     if (!isTyping) return;
-    
+
     const interval = setInterval(() => {
       if (cursorRef.current) {
         cursorRef.current.style.opacity = cursorRef.current.style.opacity === '0' ? '1' : '0';
       }
     }, 500);
-    
+
     return () => clearInterval(interval);
   }, [isTyping]);
 
@@ -118,29 +145,29 @@ const ChalkboardTypingEffect = () => {
         <div className="absolute inset-0 bg-opacity-10 pointer-events-none">
           <div className="chalk-dust"></div>
         </div>
-        
+
         {/* Chalkboard content */}
         <div className="font-chalk text-gray-100 whitespace-pre-wrap min-h-64 relative">
           {renderMathText(displayText)}
           {isTyping && (
-            <span 
-              ref={cursorRef} 
+            <span
+              ref={cursorRef}
               className="inline-block h-6 w-2 bg-gray-100 align-text-bottom ml-1"
             ></span>
           )}
         </div>
       </div>
-      
+
       {/* Controls */}
       <div className="mt-6">
-        <button 
+        <button
           onClick={handleRestart}
           className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         >
           Restart Animation
         </button>
       </div>
-      
+
       {/* CSS Styles */}
       <style jsx>{`
         @font-face {
