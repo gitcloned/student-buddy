@@ -14,22 +14,6 @@ function parseResponse(text) {
             .trim();
         console.log("Extracted YAML without markers: \"".concat(yamlText, "\""));
     }
-
-    if (yamlText.startsWith("```yaml")) {
-        yamlText = yamlText
-            .replace(/^```yaml\s*\n?/, "")
-    }
-
-    if (yamlText.startsWith("```")) {
-        yamlText = yamlText
-            .replace(/^```\s*\n?/, "")
-    }
-
-    if (yamlText.endsWith("```")) {
-        yamlText = yamlText
-            .replace(/```\s*$/, "")
-    }
-
     // Try to parse as YAML first
     try {
         console.log("Attempting to parse YAML: \"".concat(yamlText, "\""));
@@ -42,6 +26,7 @@ function parseResponse(text) {
             type: parsed.type,
             text: parsed.text,
             action: parsed.action,
+            write: parsed.write,
         };
     }
     catch (e) {
@@ -51,43 +36,46 @@ function parseResponse(text) {
         var type = "text"; // Default type
         var text_1 = "";
         var action = "";
+        var write = "";
         for (var i = 0; i < lines.length; i++) {
             var line = lines[i].trim();
-            if (line.startsWith("type:")) {
-                type = line.replace("type:", "").trim();
+            // Use case-insensitive checks to be more forgiving
+            if (/^type:/i.test(line)) {
+                type = line.replace(/type:/i, "").trim();
             }
-            else if (line.startsWith("text:")) {
-                // Extract everything after "text:" as the text value
-                text_1 = line.replace("text:", "").trim();
-                // If the text spans multiple lines, append them until we hit "action:" or end
-                for (var j = i + 1; j < lines.length; j++) {
-                    var nextLine = lines[j].trim();
-                    if (nextLine.startsWith("action:")) {
-                        action = nextLine.replace("action:", "").trim();
-                        break;
+            else if (/^text:/i.test(line)) {
+                // Capture everything after "text:" on the SAME line first
+                var currentText = line.replace(/text:/i, "").trim();
+                var textLines = currentText ? [currentText] : [];
+                // Keep consuming subsequent lines until we hit another recognised key
+                var j = i + 1;
+                for (; j < lines.length; j++) {
+                    var nextLine = lines[j];
+                    var trimmedNext = nextLine.trim();
+                    if (/^(action|write|type):/i.test(trimmedNext)) {
+                        break; // stop collecting text
                     }
-                    else if (nextLine) {
-                        text_1 += " " + nextLine;
-                    }
+                    textLines.push(nextLine.replace(/^\s+/, "")); // Preserve original spacing within the line
                 }
+                text_1 = textLines.join("\n").replace(/```/g, "").trim();
+                i = j - 1; // Skip the lines we've already consumed
             }
-            else if (line.startsWith("action:")) {
-                action = line.replace("action:", "").trim();
+            else if (/^action:/i.test(line)) {
+                action = line.replace(/action:/i, "").trim();
+            }
+            else if (/^write:/i.test(line)) {
+                write = line.replace(/write:/i, "").trim();
             }
         }
-        // If no text was found, use the entire input as text (minus type/action lines)
-        if (!text_1 && !action) {
+        // If no text was found, use the entire input as text (minus known key lines)
+        if (!text_1 && !action && !write) {
             text_1 = yamlText.trim();
         }
-
-        if (text_1.endsWith("```")) {
-            text_1 = text_1.slice(0, -3);
-        }
-
         return {
             type: type,
             text: text_1 || undefined,
             action: action || undefined,
+            write: write || undefined,
         };
     }
 }

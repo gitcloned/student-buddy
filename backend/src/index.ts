@@ -93,22 +93,22 @@ You should reply back in YAML format only and nothing else. YAML reply can conta
 type: what type of reply this is, text, action
 text: text to speak
 action: action to perform
-response: actual response, which could be a contain formatted content
+write: what teacher should draw on blackboard
 
 Replies can be of below types:
 
 - Text reply
 ---
 type: text
-text: Hello
-response: Hello
+text: Solve 5x + 4 = 12
+write: 5x + 4 = 12
 
 - Take photo
 ---
 type: action
 action: take_photo
 text: Take a photo of speaking corner
-response: Take a photo of speaking corner
+write: 
 `;
 
   return { systemPrompt, featureMap };
@@ -235,7 +235,7 @@ wss.on("connection", (ws) => {
               });
 
               const followUpResponse = await openai.chat.completions.create({
-                model: "gpt-4o",
+                model: "gpt-4.1",
                 messages,
                 temperature: 0.7,
               });
@@ -252,6 +252,7 @@ wss.on("connection", (ws) => {
         conversationManager.appendMessage(currentSessionId, assistantMessage);
 
         const parsedResponse = parseResponse(aiResponse);
+        console.log(parsedResponse)
 
         ws.send(
           JSON.stringify({

@@ -4,6 +4,7 @@ export default function parseResponse(text: string): {
   type: string;
   text?: string;
   action?: string;
+  write?: string;
 } {
   console.log(`Raw GPT response: "${text}"`);
 
@@ -26,6 +27,7 @@ export default function parseResponse(text: string): {
       type?: string;
       text?: string;
       action?: string;
+      write?: string;
     };
     console.log(`Parsed YAML:`, parsed);
 
@@ -37,6 +39,7 @@ export default function parseResponse(text: string): {
       type: parsed.type,
       text: parsed.text,
       action: parsed.action,
+      write: parsed.write,
     };
   } catch (e) {
     console.error(`YAML parsing failed: ${e}`);
@@ -45,34 +48,39 @@ export default function parseResponse(text: string): {
     let type = "text"; // Default type
     let text = "";
     let action = "";
+    let write = "";
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      if (line.startsWith("type:")) {
-        type = line.replace("type:", "").trim();
-      } else if (line.startsWith("text:")) {
-        // Extract everything after "text:" as the text value
-        text = line.replace("text:", "").trim();
-        // If the text spans multiple lines, append them until we hit "action:" or end
-        for (let j = i + 1; j < lines.length; j++) {
-          const nextLine = lines[j].trim();
-          if (nextLine.startsWith("action:")) {
-            action = nextLine.replace("action:", "").trim();
-            break;
-          } else if (nextLine) {
-            text += " " + nextLine;
+      // Use case-insensitive checks to be more forgiving
+      if (/^type:/i.test(line)) {
+        type = line.replace(/type:/i, "").trim();
+      } else if (/^text:/i.test(line)) {
+        // Capture everything after "text:" on the SAME line first
+        let currentText = line.replace(/text:/i, "").trim();
+        const textLines: string[] = currentText ? [currentText] : [];
+
+        // Keep consuming subsequent lines until we hit another recognised key
+        let j = i + 1;
+        for (; j < lines.length; j++) {
+          const nextLine = lines[j];
+          const trimmedNext = nextLine.trim();
+          if (/^(action|write|type):/i.test(trimmedNext)) {
+            break; // stop collecting text
           }
+          textLines.push(nextLine.replace(/^\s+/, "")); // Preserve original spacing within the line
         }
-
-        text = text.replace("```", "");
-
-      } else if (line.startsWith("action:")) {
-        action = line.replace("action:", "").trim();
+        text = textLines.join("\n").replace(/```/g, "").trim();
+        i = j - 1; // Skip the lines we've already consumed
+      } else if (/^action:/i.test(line)) {
+        action = line.replace(/action:/i, "").trim();
+      } else if (/^write:/i.test(line)) {
+        write = line.replace(/write:/i, "").trim();
       }
     }
 
-    // If no text was found, use the entire input as text (minus type/action lines)
-    if (!text && !action) {
+    // If no text was found, use the entire input as text (minus known key lines)
+    if (!text && !action && !write) {
       text = yamlText.trim();
     }
 
@@ -80,6 +88,7 @@ export default function parseResponse(text: string): {
       type,
       text: text || undefined,
       action: action || undefined,
+      write: write || undefined,
     };
   }
 }
