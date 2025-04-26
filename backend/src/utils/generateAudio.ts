@@ -104,7 +104,7 @@ export async function generateAudioUsingElevenLabs(
 
 export async function generateAudioUsingOpenAI(
   text: string,
-  audio_speed = 1.0,
+  audio_speed = 0.8,
   voiceName = "alloy",
 ): Promise<Buffer> {
   console.log("Generating audio using OpenAI for text:", text);
