@@ -258,6 +258,7 @@ wss.on("connection", (ws) => {
           JSON.stringify({
             type: parsedResponse.type,
             text: parsedResponse.text,
+            write: parsedResponse.write,
             action: parsedResponse.action,
             audio: await generateAudio(parsedResponse.text || "")
           })
