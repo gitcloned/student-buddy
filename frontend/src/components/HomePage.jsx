@@ -235,7 +235,7 @@ const HomePage = ({ grade, bookIds }) => {
         className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-70 z-0"
         style={{ backgroundImage: `url(${background})` }}
       />
-      <div className="relative z-10 w-full h-full">
+      <div className="relative z-10 w-full h-full p-4">
         <div className="relative w-full h-full flex flex-row rounded-2xl justify-end">
           <audio ref={audioPlayerRef} hidden />
 

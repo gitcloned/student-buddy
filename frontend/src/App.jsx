@@ -1,13 +1,23 @@
-import React, { StrictMode } from 'react'
+import React, { useState } from 'react'
 import './App.css'
 import ReadingPage from './components/ReadingPage'
 import HomePage from './components/HomePage'
+import ClassSelectionScreen from './components/ClassSelectionScreen'
 
 function App() {
+  const [selectedChild, setSelectedChild] = useState(null);
+
+  const handleSelectChild = (child) => {
+    setSelectedChild(child);
+  };
+
   return (
-    // <div className="bg-[#FEFFB4] bg-grey-100 w-full h-full p-2 pt-4 pb-4"></div>
-    <div className="bg-white w-full h-full p-2 pt-4 pb-4">
-      <HomePage grade="1st Grade" bookIds={[1, 2, 3]} />
+    <div className="bg-white w-full h-full">
+      {selectedChild ? (
+        <HomePage grade={selectedChild.grade} bookIds={selectedChild.bookIds} />
+      ) : (
+        <ClassSelectionScreen onSelectChild={handleSelectChild} />
+      )}
     </div>
   )
 }
