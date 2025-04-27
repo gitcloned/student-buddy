@@ -3,16 +3,18 @@ import chalkSoundSrc from '../assets/chalk-sound.mp3';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
-// Chalkboard now takes lines (array of objects) as prop
+// Chalkboard component that takes lines (array of objects) as prop
 const Chalkboard = ({ lines = [] }) => {
   const [displayText, setDisplayText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const chalkboardRef = useRef(null);
   const cursorRef = useRef(null);
   const audioRef = useRef(null); // Ref for the audio element
-
-  // Track the last animated line index
+  
+  // For handling LaTeX animation better
   const [lastAnimatedIdx, setLastAnimatedIdx] = useState(-1);
+  const [isLatexLine, setIsLatexLine] = useState(false);
+  const [shouldRenderFullLatex, setShouldRenderFullLatex] = useState(false);
 
   // Initialize audio on mount
   useEffect(() => {
@@ -38,33 +40,69 @@ const Chalkboard = ({ lines = [] }) => {
     }
   }, [isTyping]);
 
+  // Helper to check for LaTeX
+  const isLatex = (text) => {
+    // Matches \( ... \), $$ ... $$, \[ ... \], and $ ... $ (single dollar sign)
+    return /\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\]|\$([^\$\n]|\\\\)*\$/.test(text);
+  };
+
   // Animate the last line only
   useEffect(() => {
     if (!lines.length) return;
     if (lastAnimatedIdx === lines.length - 1) return; // Already animated latest
+    
+    // Reset states for new animation
     setIsTyping(true);
+    setShouldRenderFullLatex(false);
+    
     let charIndex = 0;
     let currentText = '';
     
     // Get the text from the last line (handle both string and object formats)
     const lastLine = lines[lines.length - 1];
     const lastLineText = typeof lastLine === 'string' ? lastLine : lastLine.text || '';
-
-    const typeNextChar = () => {
-      if (charIndex < lastLineText.length) {
-        const char = lastLineText[charIndex];
-        currentText += char;
-        setDisplayText(currentText);
-        charIndex++;
-        setTimeout(typeNextChar, Math.random() * 50 + 30);
-      } else {
-        setIsTyping(false);
-        setLastAnimatedIdx(lines.length - 1);
-      }
-    };
-
-    setDisplayText('');
-    typeNextChar();
+    
+    // Check if this line contains LaTeX
+    const containsLatex = isLatex(lastLineText);
+    setIsLatexLine(containsLatex);
+    
+    // Two animation options based on content type
+    if (containsLatex) {
+      // For LaTeX: Faster typing animation, then swap in rendered LaTeX at the end
+      const typeLatexFast = () => {
+        if (charIndex < lastLineText.length) {
+          const char = lastLineText[charIndex];
+          currentText += char;
+          setDisplayText(currentText);
+          charIndex++;
+          // Faster animation for LaTeX, will be replaced with rendered version
+          setTimeout(typeLatexFast, 10); 
+        } else {
+          // Animation complete - after a brief pause, mark as complete
+          setTimeout(() => {
+            setShouldRenderFullLatex(true);
+            setIsTyping(false);
+            setLastAnimatedIdx(lines.length - 1);
+          }, 400);
+        }
+      };
+      typeLatexFast();
+    } else {
+      // For regular text: Normal typing animation
+      const typeRegularText = () => {
+        if (charIndex < lastLineText.length) {
+          const char = lastLineText[charIndex];
+          currentText += char;
+          setDisplayText(currentText);
+          charIndex++;
+          setTimeout(typeRegularText, Math.random() * 50 + 30);
+        } else {
+          setIsTyping(false);
+          setLastAnimatedIdx(lines.length - 1);
+        }
+      };
+      typeRegularText();
+    }
   }, [lines]);
 
   // Cursor blinking effect
@@ -85,109 +123,108 @@ const Chalkboard = ({ lines = [] }) => {
     }
   }, [displayText, lines]);
 
-  // Helper to check for LaTeX
-  const isLatex = (text) => {
-    // Matches \( ... \), $$ ... $$, \[ ... \], and $ ... $ (single dollar sign)
-    return /\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\]|\$([^\$\n]|\\\\)*\$/.test(text);
+  // Special handling for LaTeX rendering
+  const renderLatexLine = (text) => {
+    // Pattern for LaTeX delimiters
+    const latexPattern = /(\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\]|\$([^\$\n]|\\\\)*\$)/g;
+    
+    // Find all matches and their positions
+    const matches = [];
+    let match;
+    while ((match = latexPattern.exec(text)) !== null) {
+      matches.push({
+        latex: match[0],
+        start: match.index,
+        end: match.index + match[0].length
+      });
+    }
+    
+    // Build segments array with text and LaTeX parts
+    const segments = [];
+    let lastEnd = 0;
+    
+    matches.forEach(m => {
+      // Add text before this LaTeX expression
+      if (m.start > lastEnd) {
+        segments.push({
+          type: 'text',
+          content: text.substring(lastEnd, m.start)
+        });
+      }
+      
+      // Add the LaTeX expression
+      segments.push({
+        type: 'latex',
+        content: m.latex
+      });
+      
+      lastEnd = m.end;
+    });
+    
+    // Add any remaining text after the last LaTeX expression
+    if (lastEnd < text.length) {
+      segments.push({
+        type: 'text',
+        content: text.substring(lastEnd)
+      });
+    }
+    
+    // Render each segment accordingly
+    return segments.map((seg, i) => {
+      if (seg.type === 'latex') {
+        try {
+          // Remove delimiters for katex rendering
+          let expr = seg.content;
+          let displayMode = false;
+          
+          if (expr.startsWith('$$') && expr.endsWith('$$')) {
+            expr = expr.slice(2, -2);
+            displayMode = true;
+          } else if (expr.startsWith('\\[') && expr.endsWith('\\]')) {
+            expr = expr.slice(2, -2);
+            displayMode = true;
+          } else if (expr.startsWith('\\(') && expr.endsWith('\\)')) {
+            expr = expr.slice(2, -2);
+          } else if (expr.startsWith('$') && expr.endsWith('$')) {
+            expr = expr.slice(1, -1);
+          }
+          
+          return (
+            <span
+              key={i}
+              dangerouslySetInnerHTML={{ 
+                __html: katex.renderToString(expr, { 
+                  displayMode,
+                  throwOnError: false,
+                  errorColor: '#f44336'
+                }) 
+              }}
+            />
+          );
+        } catch (e) {
+          console.error('LaTeX rendering error:', e);
+          return <span key={i} style={{ color: 'red' }}>{seg.content}</span>;
+        }
+      } else {
+        // Handle newlines in text segments
+        return (
+          <span key={i}>
+            {seg.content.split('\n').map((line, j) => (
+              <React.Fragment key={j}>
+                {line}
+                {j < seg.content.split('\n').length - 1 && <br />}
+              </React.Fragment>
+            ))}
+          </span>
+        );
+      }
+    });
   };
 
   // Helper to render text with LaTeX and newlines
   const renderLine = (text) => {
     if (isLatex(text)) {
-      // Pattern for LaTeX delimiters
-      const latexPattern = /(\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\]|\$([^\$\n]|\\\\)*\$)/g;
-      
-      // Find all matches and their positions
-      const matches = [];
-      let match;
-      while ((match = latexPattern.exec(text)) !== null) {
-        matches.push({
-          latex: match[0],
-          start: match.index,
-          end: match.index + match[0].length
-        });
-      }
-      
-      // Build segments array with text and LaTeX parts
-      const segments = [];
-      let lastEnd = 0;
-      
-      matches.forEach(m => {
-        // Add text before this LaTeX expression
-        if (m.start > lastEnd) {
-          segments.push({
-            type: 'text',
-            content: text.substring(lastEnd, m.start)
-          });
-        }
-        
-        // Add the LaTeX expression
-        segments.push({
-          type: 'latex',
-          content: m.latex
-        });
-        
-        lastEnd = m.end;
-      });
-      
-      // Add any remaining text after the last LaTeX expression
-      if (lastEnd < text.length) {
-        segments.push({
-          type: 'text',
-          content: text.substring(lastEnd)
-        });
-      }
-      
-      // Render each segment accordingly
-      return segments.map((seg, i) => {
-        if (seg.type === 'latex') {
-          try {
-            // Remove delimiters for katex rendering
-            let expr = seg.content;
-            let displayMode = false;
-            
-            if (expr.startsWith('$$') && expr.endsWith('$$')) {
-              expr = expr.slice(2, -2);
-              displayMode = true;
-            } else if (expr.startsWith('\\[') && expr.endsWith('\\]')) {
-              expr = expr.slice(2, -2);
-              displayMode = true;
-            } else if (expr.startsWith('\\(') && expr.endsWith('\\)')) {
-              expr = expr.slice(2, -2);
-            } else if (expr.startsWith('$') && expr.endsWith('$')) {
-              expr = expr.slice(1, -1);
-            }
-            
-            return (
-              <span
-                key={i}
-                dangerouslySetInnerHTML={{ 
-                  __html: katex.renderToString(expr, { 
-                    displayMode,
-                    throwOnError: false,
-                    errorColor: '#f44336'
-                  }) 
-                }}
-              />
-            );
-          } catch (e) {
-            console.error('LaTeX rendering error:', e);
-            return <span key={i} style={{ color: 'red' }}>{seg.content}</span>;
-          }
-        } else {
-          // Handle newlines in text segments
-          return (
-            <span key={i}>
-              {seg.content.split('\n').map((line, j) => (
-                <React.Fragment key={j}>
-                  {line}
-                  {j < seg.content.split('\n').length - 1 && <br />}
-                </React.Fragment>
-              ))}
-            </span>
-          );
-        }
-      });
+      return renderLatexLine(text);
     } else {
       // No LaTeX, just handle newlines
       return text.split('\n').map((line, i) => (
@@ -197,6 +234,13 @@ const Chalkboard = ({ lines = [] }) => {
         </React.Fragment>
       ));
     }
+  };
+
+  // Get the current line being animated
+  const getCurrentLine = () => {
+    if (!lines.length) return null;
+    const lastLine = lines[lines.length - 1];
+    return typeof lastLine === 'string' ? lastLine : lastLine.text || '';
   };
 
   // Render all previous lines and the animated last line
@@ -270,7 +314,15 @@ const Chalkboard = ({ lines = [] }) => {
               : '16px',
           }}
         >
-          {renderLine(displayText)}
+          {/* Handle LaTeX differently during animation */}
+          {isLatexLine && shouldRenderFullLatex ? (
+            // Show fully rendered LaTeX once animation is complete
+            renderLine(getCurrentLine())
+          ) : (
+            // Show character-by-character animation
+            renderLine(displayText)
+          )}
+          
           {isTyping && (
             <span 
               ref={cursorRef}

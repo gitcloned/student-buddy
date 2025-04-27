@@ -5,7 +5,8 @@ const sampleLines = [
   { text: 'Welcome to the Chalkboard test!' },
   { text: 'This line is rendered with animation.' },
   { text: 'You can add math: $E=mc^2$' },
-  { text: 'Try editing the lines below.' }
+  { text: 'Try editing the lines below.' },
+  { text: '$$\\int_{-\\infty}^{\\infty} \\frac{1}{\\sqrt{2\\pi\\sigma^2}} e^{-\\frac{(x-\\mu)^2}{2\\sigma^2}} dx = 1$$' }
 ];
 
 const ChalkboardTestPage = () => {

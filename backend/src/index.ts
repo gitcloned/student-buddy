@@ -106,6 +106,14 @@ action: action to perform (take_photo)
 write: what to write on chalkboard
 draw: anything to draw as well
 
+If writing in latex, use below explicit wrappers
+
+\(...\)     For inline math (recommended)
+$$...$$     For display/block math (recommended)
+\[...\]     Alternative display math
+$...$       Simple inline (use cautiously)
+
+
 Replies can be of below types:
 
 - Text reply
