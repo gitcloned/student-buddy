@@ -20,7 +20,7 @@ export const generateGreeting = (
           "Let us commence our learning session",
           "Shall we begin today's lesson?",
           "I hope you're prepared for today's study plan",
-          "Let's review yesterday's concepts first"
+          // "Let's review yesterday's concepts first"
         ],
         motivations: [
           "Consistent practice leads to excellence",
@@ -42,49 +42,50 @@ export const generateGreeting = (
           "Ready to crush today's goals?"
         ],
         motivations: [
-          "You got this! One step at a time",
-          "Progress > perfection! Keep going",
-          "Small daily improvements compound big time"
+          "You got this!",
+          "Progress leads to perfection! Let's do this!",
+          "Let's start"
         ]
       }
     },
     hinglish: {
       formal: {
         timeGreetings: {
-          morning: "Suprabhat! Let's begin today's paath",
-          afternoon: "Dopahar ke baad ki padhai shuru karein",
+          morning: "Suprabhat! Let's begin today's paath!",
+          afternoon: "Dopahar ke baad ki padhai shuru karein??",
           evening: "Sanyam ke sath sandhya ka adhyayan",
-          lateNight: "Ratri mein adhyayan, par santulan rakhein"
+          lateNight: "Ratri mein adhyayan shuru rakhein??"
         },
         phrases: [
           "Aaj ka syllabus kya hai?",
           "Pichhle adhyay ka revision ho gaya?",
           "Koi shankya ya sankat?",
-          "Vyakti gat udaharan ke sath samjhein"
+          //"Vyakti gat udaharan ke sath samjhein"
         ],
         motivations: [
-          "Niyamit abhyas se praapt hota hai saphalta",
-          "Shiksha ka mahatva samajhte hue aage badhein",
-          "Prashn patra ki taiyari ke liye samay samarpit karein"
+          "Niyamit abhyas se hi praapt hoti hai saphalta!!",
+          //"Shiksha ka mahatva samajhte hue aage badhein",
+          "Prashn patra ki taiyari kare??"
         ]
       },
       candid: {
         timeGreetings: {
-          morning: "Chai peeke shuru karein? ☕",
+          morning: "Chai peeke shuru karein?",
           afternoon: "Break ke baad full dhyaan se!",
           evening: "Evening ki fresh shuruaat!",
           lateNight: "Raat ke 11 baj gaye, thoda aaram bhi zaroori hai!"
         },
         phrases: [
-          "Aaj ka target kya fix kiya? 🎯",
-          "Kuch interesting doubt hai? Poochho!",
-          "Chalo ek quick revision mar lete hain",
-          "Aaj ka special topic kya hai?"
+          "Aaj ka target kya hai?",
+          "Kuch interesting doubt hai? Poochho....",
+          // "Chalo ek quick revision mar lete hain",
+          "Aaj ka topic kya hai?"
         ],
         motivations: [
-          "Padhoge likhoge to banoge nawab! 😉",
-          "Thoda aur try karo, answer dikh raha hai!",
-          "Kal result dekhenge, aaj mehnat karenge!"
+          //"Padhoge likhoge to banoge nawab!",
+          "Thoda koshish karte hai. Answer aayega!",
+          "Chalo, mehnat kare!",
+          "Chalo, padhe!"
         ]
       }
     },

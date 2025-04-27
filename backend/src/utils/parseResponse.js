@@ -34,7 +34,7 @@ function parseResponse(text) {
         // Fallback: Manually extract type, text, and action
         var lines = yamlText.split("\n");
         var type = "text"; // Default type
-        var text_1 = "";
+        var speak = "";
         var action = "";
         var write = "";
         for (var i = 0; i < lines.length; i++) {
@@ -44,7 +44,7 @@ function parseResponse(text) {
                 type = line.replace(/type:/i, "").trim();
             }
             else if (/^speak:/i.test(line)) {
-                // Capture everything after "speak:" on the SAME line first
+                // Capture everything after "text:" on the SAME line first
                 var currentText = line.replace(/speak:/i, "").trim();
                 var textLines = currentText ? [currentText] : [];
                 // Keep consuming subsequent lines until we hit another recognised key
@@ -57,7 +57,7 @@ function parseResponse(text) {
                     }
                     textLines.push(nextLine.replace(/^\s+/, "")); // Preserve original spacing within the line
                 }
-                text_1 = textLines.join("\n").replace(/```/g, "").trim();
+                speak = textLines.join("\n").replace(/```/g, "").trim();
                 i = j - 1; // Skip the lines we've already consumed
             }
             else if (/^action:/i.test(line)) {
@@ -68,12 +68,12 @@ function parseResponse(text) {
             }
         }
         // If no text was found, use the entire input as text (minus known key lines)
-        if (!text_1 && !action && !write) {
-            text_1 = yamlText.trim();
+        if (!speak && !action && !write) {
+            speak = yamlText.trim();
         }
         return {
             type: type,
-            text: text_1 || undefined,
+            speak: speak || undefined,
             action: action || undefined,
             write: write || undefined,
         };
