@@ -43,9 +43,9 @@ function parseResponse(text) {
             if (/^type:/i.test(line)) {
                 type = line.replace(/type:/i, "").trim();
             }
-            else if (/^text:/i.test(line)) {
-                // Capture everything after "text:" on the SAME line first
-                var currentText = line.replace(/text:/i, "").trim();
+            else if (/^speak:/i.test(line)) {
+                // Capture everything after "speak:" on the SAME line first
+                var currentText = line.replace(/speak:/i, "").trim();
                 var textLines = currentText ? [currentText] : [];
                 // Keep consuming subsequent lines until we hit another recognised key
                 var j = i + 1;

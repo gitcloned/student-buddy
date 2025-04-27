@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import chalkSoundSrc from '../assets/chalk-sound.mp3';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 // Chalkboard now takes lines (array of objects) as prop
 const Chalkboard = ({ lines = [] }) => {
@@ -83,6 +85,63 @@ const Chalkboard = ({ lines = [] }) => {
     }
   }, [displayText, lines]);
 
+  // Helper to check for LaTeX
+  const isLatex = (text) => {
+    // Matches \( ... \), $$ ... $$, \[ ... \]
+    return /\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\]/.test(text);
+  };
+
+  // Helper to render text with LaTeX and newlines
+  const renderLine = (text) => {
+    if (isLatex(text)) {
+      // Extract and render all LaTeX blocks
+      const latexRegex = /(\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\])/g;
+      const segments = text.split(latexRegex);
+      return segments.map((seg, i) => {
+        if (isLatex(seg)) {
+          try {
+            // Remove delimiters for katex rendering
+            let expr = seg;
+            let displayMode = false;
+            if (expr.startsWith('$$') && expr.endsWith('$$')) {
+              expr = expr.slice(2, -2);
+              displayMode = true;
+            } else if (expr.startsWith('\\[') && expr.endsWith('\\]')) {
+              expr = expr.slice(2, -2);
+              displayMode = true;
+            } else if (expr.startsWith('\\(') && expr.endsWith('\\)')) {
+              expr = expr.slice(2, -2);
+            }
+            return (
+              <span
+                key={i}
+                dangerouslySetInnerHTML={{ __html: katex.renderToString(expr, { displayMode }) }}
+              />
+            );
+          } catch (e) {
+            return <span key={i} style={{ color: 'red' }}>{seg}</span>;
+          }
+        } else {
+          // Handle newlines in non-LaTeX segments
+          return seg.split('\n').map((line, j) => (
+            <React.Fragment key={j}>
+              {line}
+              {j < seg.split('\n').length - 1 && <br />}
+            </React.Fragment>
+          ));
+        }
+      });
+    } else {
+      // No LaTeX, just handle newlines
+      return text.split('\n').map((line, i) => (
+        <React.Fragment key={i}>
+          {line}
+          {i < text.split('\n').length - 1 && <br />}
+        </React.Fragment>
+      ));
+    }
+  };
+
   // Render all previous lines and the animated last line
   return (
     <div 
@@ -127,7 +186,7 @@ const Chalkboard = ({ lines = [] }) => {
               marginBottom: '8px'
             }}
           >
-            {lineText}
+            {renderLine(lineText)}
           </div>
         );
       })}
@@ -154,7 +213,7 @@ const Chalkboard = ({ lines = [] }) => {
               : '16px',
           }}
         >
-          {displayText}
+          {renderLine(displayText)}
           {isTyping && (
             <span 
               ref={cursorRef}
