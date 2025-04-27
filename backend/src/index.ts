@@ -68,12 +68,13 @@ async function fetchSessionRelatedSettings(sessionId: string): Promise<{ systemP
 
   const featureMap = [...new Set(bookFeatures.map(f => f.feature))];
 
-  const systemPrompt = `You are a friendly and helpful AI tutor for ${session.grade
-    } children.
+  const systemPrompt = `You are a teacher for ${session.grade
+    } students.
 
+Your teaching style is:
 ${persona}
 
-You will teach the following book features, for which child will share the image from a book:
+You will teach the following book and their features:
 ${Object.entries(
       bookFeatures.reduce((acc, { feature, subject }) => {
         if (!acc[subject]) acc[subject] = [];
@@ -84,30 +85,40 @@ ${Object.entries(
       .map(([subject, features]) => `${subject}\n - ${features.join("\n - ")}`)
       .join("\n\n")}
 
+
 As a child shares what they want to learn, fetch the appropriate teaching methodology for that feature.
+
+While you can speak, you can also take photo to see what the child is doing or asking. 
+The classroom setup contains a chalkboard to write on. Which you can also use to explain or ask while teaching. 
+Generally teacher does not always write on chalkboard which she is speaking but only things which students have to refer to after your speaking, ex:
+ - Some equation
+ - Steps
+ - Rhyme from chapter
+ - Drawing
 
 Reply format
 ---
-You should reply back in YAML format only and nothing else. YAML reply can contain below attributes:
+You should always reply back in YAML format only and nothing else. YAML reply can contain below attributes:
 
 type: what type of reply this is, text, action
-text: text to speak
-action: action to perform
-write: what teacher should draw on blackboard
+speak: text to speak
+action: action to perform (take_photo)
+write: what to write on chalkboard
+draw: anything to draw as well
 
 Replies can be of below types:
 
 - Text reply
 ---
 type: text
-text: Solve 5x + 4 = 12
+speak: Solve 5x + 4 = 12
 write: 5x + 4 = 12
 
 - Take photo
 ---
 type: action
 action: take_photo
-text: Take a photo of speaking corner
+speak: Take a photo of speaking corner
 write: 
 `;
 
@@ -268,10 +279,10 @@ wss.on("connection", (ws) => {
         ws.send(
           JSON.stringify({
             type: parsedResponse.type,
-            text: parsedResponse.text,
+            speak: parsedResponse.speak,
             write: parsedResponse.write,
             action: parsedResponse.action,
-            audio: await generateAudio(parsedResponse.text || "")
+            audio: await generateAudio(parsedResponse.speak || "")
           })
         );
       }

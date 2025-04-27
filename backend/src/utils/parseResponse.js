@@ -24,7 +24,7 @@ function parseResponse(text) {
         }
         return {
             type: parsed.type,
-            text: parsed.text,
+            speak: parsed.speak,
             action: parsed.action,
             write: parsed.write,
         };

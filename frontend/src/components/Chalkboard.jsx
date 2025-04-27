@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import chalkSoundSrc from '../assets/chalk-sound.mp3';
 
-// Chalkboard now takes lines (array) as prop
+// Chalkboard now takes lines (array of objects) as prop
 const Chalkboard = ({ lines = [] }) => {
   const [displayText, setDisplayText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -43,11 +43,14 @@ const Chalkboard = ({ lines = [] }) => {
     setIsTyping(true);
     let charIndex = 0;
     let currentText = '';
-    const lastLine = lines[lines.length - 1] || '';
+    
+    // Get the text from the last line (handle both string and object formats)
+    const lastLine = lines[lines.length - 1];
+    const lastLineText = typeof lastLine === 'string' ? lastLine : lastLine.text || '';
 
     const typeNextChar = () => {
-      if (charIndex < lastLine.length) {
-        const char = lastLine[charIndex];
+      if (charIndex < lastLineText.length) {
+        const char = lastLineText[charIndex];
         currentText += char;
         setDisplayText(currentText);
         charIndex++;
@@ -99,21 +102,73 @@ const Chalkboard = ({ lines = [] }) => {
         position: 'relative'
       }}
     >
-      {lines.slice(0, -1).join('\n')}
-      {lines.length > 1 ? '\n' : ''}
-      {displayText}
-      {isTyping && (
-        <span 
-          ref={cursorRef}
+      {/* Render all previous lines */}
+      {lines.slice(0, -1).map((line, index) => {
+        // Handle both string and object formats
+        const lineText = typeof line === 'string' ? line : line.text || '';
+        
+        // Get position from the line object or default to 0
+        const position = typeof line === 'object' ? line.position || {} : {};
+        const left = position.left !== undefined ? position.left : 0;
+        const top = position.top !== undefined ? position.top : 0;
+        
+        // Get color and font size from the line object or use defaults
+        const color = typeof line === 'object' && line.color ? line.color : 'white';
+        const fontSize = typeof line === 'object' && line.fontSize ? line.fontSize : 16;
+        
+        return (
+          <div 
+            key={index}
+            style={{
+              marginLeft: `${left}px`,
+              marginTop: `${top}px`,
+              color,
+              fontSize: `${fontSize}px`,
+              marginBottom: '8px'
+            }}
+          >
+            {lineText}
+          </div>
+        );
+      })}
+      
+      {/* Render the animated last line */}
+      {lines.length > 0 && (
+        <div
           style={{
-            display: 'inline-block',
-            width: '2px',
-            height: '1.2em',
-            backgroundColor: 'white',
-            marginLeft: '2px',
-            verticalAlign: 'middle'
+            marginLeft: typeof lines[lines.length - 1] === 'object' && 
+              lines[lines.length - 1].position && 
+              lines[lines.length - 1].position.left !== undefined 
+                ? `${lines[lines.length - 1].position.left}px` 
+                : '0px',
+            marginTop: typeof lines[lines.length - 1] === 'object' && 
+              lines[lines.length - 1].position && 
+              lines[lines.length - 1].position.top !== undefined 
+                ? `${lines[lines.length - 1].position.top}px` 
+                : '0px',
+            color: typeof lines[lines.length - 1] === 'object' && lines[lines.length - 1].color 
+              ? lines[lines.length - 1].color 
+              : 'white',
+            fontSize: typeof lines[lines.length - 1] === 'object' && lines[lines.length - 1].fontSize 
+              ? `${lines[lines.length - 1].fontSize}px` 
+              : '16px',
           }}
-        />
+        >
+          {displayText}
+          {isTyping && (
+            <span 
+              ref={cursorRef}
+              style={{
+                display: 'inline-block',
+                width: '2px',
+                height: '1.2em',
+                backgroundColor: 'white',
+                marginLeft: '2px',
+                verticalAlign: 'middle'
+              }}
+            />
+          )}
+        </div>
       )}
     </div>
   );

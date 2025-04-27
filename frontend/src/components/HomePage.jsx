@@ -81,12 +81,12 @@ const HomePage = ({ grade, bookIds }) => {
           }
 
           if (data.type === "text") {
-            setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
-            if (!data.audio) speakText(data.text, ws);
+            setMessages((prev) => [...prev, { type: "mascot", text: data.speak }]);
+            if (!data.audio) speakText(data.speak, ws);
           } else if (data.type === "action") {
             if (data.action === "take_photo") {
-              setMessages((prev) => [...prev, { type: "mascot", text: data.text }]);
-              if (!data.audio) speakText(data.text, ws);
+              setMessages((prev) => [...prev, { type: "mascot", text: data.speak }]);
+              if (!data.audio) speakText(data.speak, ws);
               setShowCamera(true);
             }
           } else if (data.type === "error") {
@@ -139,8 +139,43 @@ const HomePage = ({ grade, bookIds }) => {
 
           // Chalkboard: accumulate lines
           if (data.write) {
-            setChalkboardLines((prev) => [...prev, data.write]);
+            // Helper functions for randomization
+            const getRandomOffset = () => Math.floor(Math.random() * 6) - 2; // Random value between -2 and 4
+            const getRandomFontSize = (baseFontSize = 22) => {
+              // Small variation: between 0.9 and 1.1 times the base size
+              const variation = 0.95 + (Math.random() * 0.1);
+              return Math.floor(baseFontSize * variation);
+            };
+            
+            // Convert string format to object format with text attribute
+            let chalkLine;
+            if (typeof data.write === 'string') {
+              // Create object with random position and fontSize
+              chalkLine = { 
+                text: data.write, 
+                position: { 
+                  left: getRandomOffset(), 
+                  top: getRandomOffset() 
+                },
+                fontSize: getRandomFontSize()
+              };
+            } else {
+              // Already in object format, ensure position is set
+              chalkLine = { ...data.write };
+              if (!chalkLine.position) {
+                chalkLine.position = { 
+                  left: getRandomOffset(), 
+                  top: getRandomOffset() 
+                };
+              }
+              if (!chalkLine.fontSize) {
+                chalkLine.fontSize = getRandomFontSize(chalkLine.fontSize || 22);
+              }
+            }
+              
+            setChalkboardLines((prev) => [...prev, chalkLine]);
           }
+
         };
 
         ws.onerror = (error) => {
@@ -248,7 +283,7 @@ const HomePage = ({ grade, bookIds }) => {
           )}
 
           {/* Mascot and Chat Section */}
-          <div className={`${chalkboardLines.length > 0 ? 'w-[40%] md:block hidden' : 'w-full'} flex flex-row max-w-[60%]`}>
+          <div className={`${chalkboardLines.length > 0 ? 'w-[40%]' : 'w-full'} flex flex-row max-w-[60%]`}>
 
             <div className="flex-grow mb-18 p-4">
               <div

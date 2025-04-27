@@ -2,7 +2,7 @@ import * as yaml from "js-yaml";
 
 export default function parseResponse(text: string): {
   type: string;
-  text?: string;
+  speak?: string;
   action?: string;
   write?: string;
 } {
@@ -25,7 +25,7 @@ export default function parseResponse(text: string): {
     console.log(`Attempting to parse YAML: "${yamlText}"`);
     const parsed = yaml.load(yamlText) as {
       type?: string;
-      text?: string;
+      speak?: string;
       action?: string;
       write?: string;
     };
@@ -37,7 +37,7 @@ export default function parseResponse(text: string): {
 
     return {
       type: parsed.type,
-      text: parsed.text,
+      speak: parsed.speak,
       action: parsed.action,
       write: parsed.write,
     };
@@ -46,7 +46,7 @@ export default function parseResponse(text: string): {
     // Fallback: Manually extract type, text, and action
     const lines = yamlText.split("\n");
     let type = "text"; // Default type
-    let text = "";
+    let speak = "";
     let action = "";
     let write = "";
 
@@ -55,9 +55,9 @@ export default function parseResponse(text: string): {
       // Use case-insensitive checks to be more forgiving
       if (/^type:/i.test(line)) {
         type = line.replace(/type:/i, "").trim();
-      } else if (/^text:/i.test(line)) {
+      } else if (/^speak:/i.test(line)) {
         // Capture everything after "text:" on the SAME line first
-        let currentText = line.replace(/text:/i, "").trim();
+        let currentText = line.replace(/speak:/i, "").trim();
         const textLines: string[] = currentText ? [currentText] : [];
 
         // Keep consuming subsequent lines until we hit another recognised key
@@ -70,7 +70,7 @@ export default function parseResponse(text: string): {
           }
           textLines.push(nextLine.replace(/^\s+/, "")); // Preserve original spacing within the line
         }
-        text = textLines.join("\n").replace(/```/g, "").trim();
+        speak = textLines.join("\n").replace(/```/g, "").trim();
         i = j - 1; // Skip the lines we've already consumed
       } else if (/^action:/i.test(line)) {
         action = line.replace(/action:/i, "").trim();
@@ -80,13 +80,13 @@ export default function parseResponse(text: string): {
     }
 
     // If no text was found, use the entire input as text (minus known key lines)
-    if (!text && !action && !write) {
-      text = yamlText.trim();
+    if (!speak && !action && !write) {
+      speak = yamlText.trim();
     }
 
     return {
       type,
-      text: text || undefined,
+      speak: speak || undefined,
       action: action || undefined,
       write: write || undefined,
     };

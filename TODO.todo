@@ -10,11 +10,12 @@ Todos:
     ✔ Text to speak will not always be the text emitted by GPT. Either GPT should emit 2 fields, text and response. Text is to speak, and response is the actual response, which could be a pie, latex, mermaid, json etc. @started(25-04-27 02:23) @done(25-04-27 02:23) @lasted(58s)
     ✔ Pick child profile and along with it books he has @started(25-04-27 02:24) @done(25-04-27 02:24) @lasted(1s)
     ☐ Versioning of prompts
+        ☐ Integrate with langfuse
     ☐ Use litellm or agent runner that was built
     ☐ Book feature or any pedagogy extends from type pedagogy, each pedagogy has its own tools. For example math homework can have diagram builder 
 
 UI/Experience
-    ☐ Better indian speech. 11 labs voice speaks = very bad @started(25-04-27 02:22)
+    ✔ Better indian speech. 11 labs voice speaks = very bad @started(25-04-27 02:22) @done(25-04-27 13:06) @lasted(10h44m22s)
         ✔ Convert math symbols to speakable text - check library or code @started(25-04-27 02:22) @done(25-04-27 02:22) @lasted(46s)
         ✔ Convert text: to speak: @started(25-04-27 02:22) @done(25-04-27 02:22) @lasted(54s)
     ☐ Sketch library
@@ -30,15 +31,16 @@ Usecases:
         ✔ Can I give something on paper and go step by step with that child @started(25-04-25 19:17) @done(25-04-25 19:17) @lasted(36s)
         ☐ Can we personalise for each child
             ☐ We need to have LO graph, and CLOKL (child LO knowledge level)
+        ☐ Should write steps in detail, the way child have been taught - this is teaching pedagoy of that LO
 
 Chalkboard:
     ☐ Prompt should understand well what to use chalkboard for. Right now it misses a lot of times
+    ☐ Should pick random places to write
+    ☐ Increase font a bit and slow down writing a bit
 
 Teacher:
     ☐ Separate teacherPersona as teachers and teacherStyle
-        ☐ Add persona prompts, https://chat.deepseek.com/a/chat/s/74270562-92c7-4316-96ca-a91d73360fd7
+        ☐ Add persona prompts, https://chat.deepseek.com/a/chat/s/74270562-92c7-4316-96ca-a91d73360fd7 and pick from langfuse
         ☐ Pick voice as per the teacher persona
         ☐ Pick avatar as per the teacher persona
         ☐ If text is also in hindi, then it works better
-        
-            
