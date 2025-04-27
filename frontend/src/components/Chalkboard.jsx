@@ -87,22 +87,65 @@ const Chalkboard = ({ lines = [] }) => {
 
   // Helper to check for LaTeX
   const isLatex = (text) => {
-    // Matches \( ... \), $$ ... $$, \[ ... \]
-    return /\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\]/.test(text);
+    // Matches \( ... \), $$ ... $$, \[ ... \], and $ ... $ (single dollar sign)
+    return /\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\]|\$([^\$\n]|\\\\)*\$/.test(text);
   };
 
   // Helper to render text with LaTeX and newlines
   const renderLine = (text) => {
     if (isLatex(text)) {
-      // Extract and render all LaTeX blocks
-      const latexRegex = /(\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\])/g;
-      const segments = text.split(latexRegex);
+      // Pattern for LaTeX delimiters
+      const latexPattern = /(\\\((.|\n)*?\\\)|\$\$(.|\n)*?\$\$|\\\[(.|\n)*?\\\]|\$([^\$\n]|\\\\)*\$)/g;
+      
+      // Find all matches and their positions
+      const matches = [];
+      let match;
+      while ((match = latexPattern.exec(text)) !== null) {
+        matches.push({
+          latex: match[0],
+          start: match.index,
+          end: match.index + match[0].length
+        });
+      }
+      
+      // Build segments array with text and LaTeX parts
+      const segments = [];
+      let lastEnd = 0;
+      
+      matches.forEach(m => {
+        // Add text before this LaTeX expression
+        if (m.start > lastEnd) {
+          segments.push({
+            type: 'text',
+            content: text.substring(lastEnd, m.start)
+          });
+        }
+        
+        // Add the LaTeX expression
+        segments.push({
+          type: 'latex',
+          content: m.latex
+        });
+        
+        lastEnd = m.end;
+      });
+      
+      // Add any remaining text after the last LaTeX expression
+      if (lastEnd < text.length) {
+        segments.push({
+          type: 'text',
+          content: text.substring(lastEnd)
+        });
+      }
+      
+      // Render each segment accordingly
       return segments.map((seg, i) => {
-        if (isLatex(seg)) {
+        if (seg.type === 'latex') {
           try {
             // Remove delimiters for katex rendering
-            let expr = seg;
+            let expr = seg.content;
             let displayMode = false;
+            
             if (expr.startsWith('$$') && expr.endsWith('$$')) {
               expr = expr.slice(2, -2);
               displayMode = true;
@@ -111,24 +154,38 @@ const Chalkboard = ({ lines = [] }) => {
               displayMode = true;
             } else if (expr.startsWith('\\(') && expr.endsWith('\\)')) {
               expr = expr.slice(2, -2);
+            } else if (expr.startsWith('$') && expr.endsWith('$')) {
+              expr = expr.slice(1, -1);
             }
+            
             return (
               <span
                 key={i}
-                dangerouslySetInnerHTML={{ __html: katex.renderToString(expr, { displayMode }) }}
+                dangerouslySetInnerHTML={{ 
+                  __html: katex.renderToString(expr, { 
+                    displayMode,
+                    throwOnError: false,
+                    errorColor: '#f44336'
+                  }) 
+                }}
               />
             );
           } catch (e) {
-            return <span key={i} style={{ color: 'red' }}>{seg}</span>;
+            console.error('LaTeX rendering error:', e);
+            return <span key={i} style={{ color: 'red' }}>{seg.content}</span>;
           }
         } else {
-          // Handle newlines in non-LaTeX segments
-          return seg.split('\n').map((line, j) => (
-            <React.Fragment key={j}>
-              {line}
-              {j < seg.split('\n').length - 1 && <br />}
-            </React.Fragment>
-          ));
+          // Handle newlines in text segments
+          return (
+            <span key={i}>
+              {seg.content.split('\n').map((line, j) => (
+                <React.Fragment key={j}>
+                  {line}
+                  {j < seg.content.split('\n').length - 1 && <br />}
+                </React.Fragment>
+              ))}
+            </span>
+          );
         }
       });
     } else {
