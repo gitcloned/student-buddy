@@ -1,15 +1,5 @@
 import { ChatCompletionMessageParam } from "openai/resources/chat";
-import { TeacherPersona } from "./types";
-
-interface Session {
-  teacherPersona: TeacherPersona | undefined;
-  sessionId: string;
-  grade: string;
-  bookIds: number[];
-  systemPrompt?: string;
-  featureMap?: string[];
-  messages: ChatCompletionMessageParam[]; // Add message history
-}
+import Session from "./Session";
 
 class ConversationManager {
   private static instance: ConversationManager;
@@ -27,54 +17,21 @@ class ConversationManager {
   }
 
   public createSession(sessionId: string, grade: string, bookIds: number[]): void {
-    this.sessions.set(sessionId, {
+    this.sessions.set(sessionId, new Session({
       sessionId,
       grade,
-      bookIds,
-      messages: [],
-      teacherPersona: undefined
-    });
+      bookIds
+    }));
   }
 
   public getSession(sessionId: string): Session | undefined {
     return this.sessions.get(sessionId);
   }
 
-  public setSystemPrompt(sessionId: string, systemPrompt: string): void {
-    const session = this.sessions.get(sessionId);
-    if (session) {
-      session.systemPrompt = systemPrompt;
-      this.sessions.set(sessionId, session);
-    }
-  }
-
-  public setFeatureMap(sessionId: string, featureMap: string[]): void {
-    const session = this.sessions.get(sessionId);
-    if (session) {
-      session.featureMap = featureMap;
-      this.sessions.set(sessionId, session);
-    }
-  }
-
-  // New method to append messages
   public appendMessage(sessionId: string, message: ChatCompletionMessageParam): void {
     const session = this.sessions.get(sessionId);
     if (session) {
-      session.messages.push(message);
-      this.sessions.set(sessionId, session);
-    }
-  }
-
-  // New method to get message history
-  public getMessages(sessionId: string): ChatCompletionMessageParam[] {
-    const session = this.sessions.get(sessionId);
-    return session ? session.messages : [];
-  }
-
-  public setTeacherPersona(sessionId: string, teacherPersona: TeacherPersona): void {
-    const session = this.sessions.get(sessionId);
-    if (session) {
-      session.teacherPersona = teacherPersona;
+      session.messages?.push(message);
       this.sessions.set(sessionId, session);
     }
   }

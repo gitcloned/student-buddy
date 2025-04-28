@@ -13,6 +13,8 @@ Todos:
         ☐ Integrate with langfuse
     ☐ Use litellm or agent runner that was built
     ☐ Book feature or any pedagogy extends from type pedagogy, each pedagogy has its own tools. For example math homework can have diagram builder 
+    ☐ When switching pedagogy, we should archive conversation and start afresh
+
 
 UI/Experience
     ✔ Better indian speech. 11 labs voice speaks = very bad @started(25-04-27 02:22) @done(25-04-27 13:06) @lasted(10h44m22s)
@@ -20,7 +22,7 @@ UI/Experience
         ✔ Convert text: to speak: @started(25-04-27 02:22) @done(25-04-27 02:22) @lasted(54s)
     ☐ Sketch library
     ☐ Diagram library integration based on book feature pedagogy
-    ☐ Teacher persona changes
+    ✔ Teacher persona changes @started(25-04-28 00:04) @done(25-04-28 00:04) @lasted(36s)
         ✔ Ability to define persona as language, style in admin panel @started(25-04-27 02:23) @done(25-04-27 02:23) @lasted(5s)
         ✔ Fetch the persona and pass to session object @started(25-04-27 02:23) @done(25-04-27 02:23) @lasted(16s)
         ✔ Use the persona in session while talking to child @started(25-04-27 02:23) @done(25-04-27 02:23) @lasted(21s)
@@ -40,7 +42,7 @@ Chalkboard:
 
 Teacher:
     ☐ Separate teacherPersona as teachers and teacherStyle
-        ☐ Add persona prompts, https://chat.deepseek.com/a/chat/s/74270562-92c7-4316-96ca-a91d73360fd7 and pick from langfuse
+        ✔ Add persona prompts, https://chat.deepseek.com/a/chat/s/74270562-92c7-4316-96ca-a91d73360fd7 and pick from langfuse @started(25-04-28 00:04) @done(25-04-28 00:04) @lasted(19s)
         ☐ Pick voice as per the teacher persona
         ☐ Pick avatar as per the teacher persona
-        ☐ If text is also in hindi, then it works better
+        ✔ If text is also in hindi, then it works better @started(25-04-28 00:04) @done(25-04-28 00:04) @lasted(15s)

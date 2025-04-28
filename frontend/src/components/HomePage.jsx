@@ -70,8 +70,8 @@ const HomePage = ({ grade, bookIds }) => {
 
           if (data.type === "session-created") {
             const greeting = generateGreeting("", { 
-              teacherLanguage: data.session.teacherPersona.language, 
-              teacherStyle: data.session.teacherPersona.tone
+              teacherLanguage: data.session._teacherPersona.language, 
+              teacherStyle: data.session._teacherPersona.tone
             });
             setMessages((prev) => [...prev, { 
               type: "mascot", 

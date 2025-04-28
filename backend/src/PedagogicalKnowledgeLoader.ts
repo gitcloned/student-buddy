@@ -1,16 +1,11 @@
 import ConversationManager from "./ConversationManager";
 import { Database } from "sqlite";
-
-interface BookFeature {
-  feature: string;
-  subject: string;
-  how_to_teach: string;
-}
+import { BookFeature } from "./types";
 
 export async function loadBookFeatures(
   sessionId: string,
   db: Database
-): Promise<{ feature: string; subject: string }[]> {
+): Promise<BookFeature[]> {
   const conversationManager = ConversationManager.getInstance();
   const session = conversationManager.getSession(sessionId);
 
@@ -19,14 +14,14 @@ export async function loadBookFeatures(
   }
 
   const features = await db.all(
-    `SELECT bf.name as feature, bf.subject
+    `SELECT bf.id, bf.book_id, bf.subject, bf.name, bf.how_to_teach
      FROM book_features bf
      JOIN books b ON b.id = bf.book_id
      WHERE b.id IN (${session.bookIds.map(() => '?').join(',')})`,
     session.bookIds
   );
 
-  return features;
+  return features as BookFeature[];
 }
 
 export async function loadPedagogicalKnowledgeForBookFeature(

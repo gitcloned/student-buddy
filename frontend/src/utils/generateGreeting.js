@@ -19,11 +19,11 @@ export const generateGreeting = (
         phrases: [
           "Let us commence our learning session",
           "Shall we begin today's lesson?",
-          "I hope you're prepared for today's study plan",
+          "I hope you're prepared for today's study plan.",
           // "Let's review yesterday's concepts first"
         ],
         motivations: [
-          "Consistent practice leads to excellence",
+          "Consistent practice, leads to excellence",
           "Remember: Perseverance is key to success",
           "Quality learning requires dedicated focus"
         ]

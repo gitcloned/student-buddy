@@ -1,18 +1,26 @@
 import * as dotenv from "dotenv";
+dotenv.config();
+
 import * as http from "http";
 import { WebSocketServer } from "ws";
 import OpenAI from "openai";
 import ConversationManager from "./ConversationManager";
-import { loadTeacherPersona } from "./TeacherPersonaLoader";
-import { loadBookFeatures, loadPedagogicalKnowledgeForBookFeature } from "./PedagogicalKnowledgeLoader";
+import { loadPedagogicalKnowledgeForBookFeature } from "./PedagogicalKnowledgeLoader";
 import { ChatCompletionMessageParam } from "openai/resources/chat";
 import parseResponse from "./utils/parseResponse";
 import { Database, open } from "sqlite";
 import sqlite3 from "sqlite3";
 import { generateAudio } from "./utils/generateAudio";
-import { TeacherPersona } from "./types";
+import { Langfuse } from "langfuse";
 
-dotenv.config();
+const langfuse = new Langfuse({
+  publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+  secretKey: process.env.LANGFUSE_SECRET_KEY,
+  baseUrl: process.env.LANGFUSE_API_URL
+});
+const trace = langfuse.trace({
+  name: "teacher@home",
+});
 
 // Database setup
 let db: Database;
@@ -57,91 +65,6 @@ const openai = new OpenAI({
 
 const conversationManager = ConversationManager.getInstance();
 
-async function fetchSessionRelatedSettings(sessionId: string): Promise<{ systemPrompt: string; featureMap: string[]; teacherPersona: TeacherPersona }> {
-  const session = conversationManager.getSession(sessionId);
-  if (!session) {
-    throw new Error("Session not found");
-  }
-
-  const { persona, language, tone, motivation, humor } = await loadTeacherPersona(sessionId, db);
-  const bookFeatures = await loadBookFeatures(sessionId, db);
-
-  const featureMap = [...new Set(bookFeatures.map(f => f.feature))];
-
-  const systemPrompt = `You are a teacher for ${session.grade
-    } students.
-
-Your teaching style is:
-${persona}
-
-You will teach the following book and their features:
-${Object.entries(
-      bookFeatures.reduce((acc, { feature, subject }) => {
-        if (!acc[subject]) acc[subject] = [];
-        acc[subject].push(feature);
-        return acc;
-      }, {} as Record<string, string[]>)
-    )
-      .map(([subject, features]) => `${subject}\n - ${features.join("\n - ")}`)
-      .join("\n\n")}
-
-
-As a child shares what they want to learn, fetch the appropriate teaching methodology for that feature.
-
-While you can speak, you can also take photo to see what the child is doing or asking. 
-The classroom setup contains a chalkboard to write on. Which you can also use to explain or ask while teaching. 
-Generally teacher does not always write on chalkboard which she is speaking but only things which students have to refer to after your speaking, ex:
- - Some equation
- - Steps
- - Rhyme from chapter
- - Drawing
-
-Reply format
----
-You should always reply back in YAML format only and nothing else. YAML reply can contain below attributes:
-
-type: what type of reply this is, text, action
-speak: text to speak
-action: action to perform (take_photo)
-write: what to write on chalkboard
-draw: anything to draw as well
-
-If writing in latex, use below explicit wrappers
-
-\(...\)     For inline math (recommended)
-$$...$$     For display/block math (recommended)
-\[...\]     Alternative display math
-$...$       Simple inline (use cautiously)
-
-
-Replies can be of below types:
-
-- Text reply
----
-type: text
-speak: Solve 5x + 4 = 12
-write: 5x + 4 = 12
-
-- Take photo
----
-type: action
-action: take_photo
-speak: Take a photo of speaking corner
-write: 
-`;
-
-  return {
-    systemPrompt, featureMap, teacherPersona: {
-      persona,
-      language,
-      tone,
-      motivation,
-      humor,
-      grade: session.grade
-    }
-  };
-}
-
 wss.on("connection", (ws) => {
   let currentSessionId: string | null = null;
 
@@ -157,10 +80,7 @@ wss.on("connection", (ws) => {
           data.bookIds
         );
 
-        const { systemPrompt, featureMap, teacherPersona } = await fetchSessionRelatedSettings(data.sessionId);
-        conversationManager.setSystemPrompt(data.sessionId, systemPrompt);
-        conversationManager.setFeatureMap(data.sessionId, featureMap);
-        conversationManager.setTeacherPersona(data.sessionId, teacherPersona);
+        await conversationManager.getSession(data.sessionId)?.initialise(db);
 
         console.log(
           `Created session ${data.sessionId} for grade "${data.grade}" child and bookIds ${data.bookIds}`
@@ -185,7 +105,7 @@ wss.on("connection", (ws) => {
 
         const messages: ChatCompletionMessageParam[] = [
           { role: "system", content: session.systemPrompt },
-          ...session.messages,
+          ...(session.messages ?? []),
         ];
 
         let newMessage: ChatCompletionMessageParam;
@@ -212,6 +132,12 @@ wss.on("connection", (ws) => {
 
         messages.push(newMessage);
         conversationManager.appendMessage(currentSessionId, newMessage);
+
+        // const generation = trace.generation({
+        //   name: "chat-completion",
+        //   model: "gpt-4o",
+        //   input: messages,
+        // });
 
         const response = await openai.chat.completions.create({
           model: "gpt-4o",
@@ -241,6 +167,10 @@ wss.on("connection", (ws) => {
           tool_choice: "auto",
         });
 
+        // generation.end({
+        //   output: response,
+        // });
+
         let aiResponse = response.choices[0].message.content ?? "";
 
         if (response.choices[0].message.tool_calls) {
@@ -263,6 +193,8 @@ wss.on("connection", (ws) => {
                 content: pedagogicalKnowledge,
                 tool_call_id: toolCall.id,
               });
+
+              session.currentlyStudying(args.bookFeature)
 
               const followUpResponse = await openai.chat.completions.create({
                 model: "gpt-4.1",
