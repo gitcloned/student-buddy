@@ -1,5 +1,6 @@
 import axios from "axios";
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+import { normaliseText } from "./normaliseText";
 
 export async function generateAudio(
   text: string,
@@ -7,13 +8,15 @@ export async function generateAudio(
   voiceName?: string
 ): Promise<Buffer> {
 
+  const speech = normaliseText(text)
+
   if (process.env.GENERATE_AUDIO_USING === "google") {
-    return generateAudioUsingGoogle(text, audio_speed, voiceName);
+    return generateAudioUsingGoogle(speech, audio_speed, voiceName);
   } else if (process.env.GENERATE_AUDIO_USING === "openai") {
-    return generateAudioUsingOpenAI(text, audio_speed, voiceName);
+    return generateAudioUsingOpenAI(speech, audio_speed, voiceName);
   }
 
-  return generateAudioUsingElevenLabs(text, audio_speed, voiceName);
+  return generateAudioUsingElevenLabs(speech, audio_speed, voiceName);
 }
 
 export async function generateAudioUsingElevenLabs(
@@ -149,10 +152,10 @@ export async function generateAudioUsingOpenAI(
 
 export async function generateAudioUsingGoogle(
   text: string,
-  audio_speed = 1.0,
+  audio_speed = 0.8,
   voiceName = "en-IN-Chirp3-HD-Aoede"
 ): Promise<Buffer> {
-  console.log("Generating audio using Google Text-to-Speech for text:", text);
+  console.log("Generating audio using Google Text-to-Speech for normalised text:", text);
 
   // Check if GOOGLE_APPLICATION_CREDENTIALS environment variable is set
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {

@@ -18,6 +18,7 @@ const HomePage = ({ grade, bookIds }) => {
   const [showCamera, setShowCamera] = useState(false);
   const [chalkboardLines, setChalkboardLines] = useState([]);
   const [session, setSession] = useState(null);
+  const [isWaitingForReply, setIsWaitingForReply] = useState(false);
   const chatContainerRef = useRef(null);
   const audioRef = useRef(new Audio(dropSound));
   const audioPlayerRef = useRef(null);
@@ -81,15 +82,18 @@ const HomePage = ({ grade, bookIds }) => {
           }
 
           if (data.type === "text") {
+            setIsWaitingForReply(false);
             setMessages((prev) => [...prev, { type: "mascot", text: data.speak }]);
             if (!data.audio) speakText(data.speak, ws);
           } else if (data.type === "action") {
+            setIsWaitingForReply(false);
             if (data.action === "take_photo") {
               setMessages((prev) => [...prev, { type: "mascot", text: data.speak }]);
               if (!data.audio) speakText(data.speak, ws);
               setShowCamera(true);
             }
           } else if (data.type === "error") {
+            setIsWaitingForReply(false);
             console.error("Error:", data.message);
           }
 
@@ -180,6 +184,7 @@ const HomePage = ({ grade, bookIds }) => {
 
         ws.onerror = (error) => {
           console.error("WebSocket error:", error);
+          setIsWaitingForReply(false);
           setMessages((prev) => [
             ...prev,
             { type: "system", text: "Connection error. Please try again." },
@@ -189,6 +194,7 @@ const HomePage = ({ grade, bookIds }) => {
         return () => ws.close();
       } catch (e) {
         console.error("Session initialization failed", e);
+        setIsWaitingForReply(false);
       }
     }
     initializeSession();
@@ -199,7 +205,7 @@ const HomePage = ({ grade, bookIds }) => {
       chatContainerRef.current.scrollTop =
         chatContainerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isWaitingForReply]);
 
   useEffect(() => {
     const recognition = new (window.SpeechRecognition ||
@@ -213,6 +219,7 @@ const HomePage = ({ grade, bookIds }) => {
       const speechResult = event.results[0][0].transcript;
       setMessages((prev) => [...prev, { type: "user", text: speechResult }]);
       if (socket) {
+        setIsWaitingForReply(true);
         socket.send(
           JSON.stringify({
             type: "message",
@@ -309,6 +316,19 @@ const HomePage = ({ grade, bookIds }) => {
                       </div>
                     </div>
                   ))}
+                  
+                  {/* Loading indicator with speech bubble and three dots */}
+                  {isWaitingForReply && (
+                    <div className="flex justify-start">
+                      <div className="rounded-lg p-3 bg-[#fd9b9e] text-[#244d2b] max-w-[80%]">
+                        <div className="flex space-x-1 items-center">
+                          <div className="w-2 h-2 bg-[#244d2b] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-2 h-2 bg-[#244d2b] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                          <div className="w-2 h-2 bg-[#244d2b] rounded-full animate-bounce" style={{ animationDelay: '600ms' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -348,6 +368,7 @@ const HomePage = ({ grade, bookIds }) => {
                         { type: "user", text: inputMessage },
                       ]);
                       if (socket) {
+                        setIsWaitingForReply(true);
                         socket.send(
                           JSON.stringify({
                             type: "message",
