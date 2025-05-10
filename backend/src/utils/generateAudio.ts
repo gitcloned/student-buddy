@@ -1,6 +1,8 @@
 import axios from "axios";
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 import { normaliseText } from "./normaliseText";
+import { SarvamAIClient } from "sarvamai";
+import { TextToSpeechSpeaker } from "sarvamai/api";
 
 export async function generateAudio(
   text: string,
@@ -14,6 +16,8 @@ export async function generateAudio(
     return generateAudioUsingGoogle(speech, audio_speed, voiceName);
   } else if (process.env.GENERATE_AUDIO_USING === "openai") {
     return generateAudioUsingOpenAI(speech, audio_speed, voiceName);
+  } else if (process.env.GENERATE_AUDIO_USING === "sarvam") {
+    return generateAudioUsingSarvam(speech, audio_speed, voiceName);
   }
 
   return generateAudioUsingElevenLabs(speech, audio_speed, voiceName);
@@ -201,4 +205,34 @@ export async function generateAudioUsingGoogle(
     console.error("Error generating audio with Google Text-to-Speech:", error);
     throw error;
   }
+}
+
+export async function generateAudioUsingSarvam(
+  text: string,
+  audio_speed = 0.8,
+  voiceName?: string
+): Promise<Buffer> {
+
+  const client = new SarvamAIClient({
+    apiSubscriptionKey: process.env.SARVAM_API_KEY
+  });
+
+  // Convert string value to enum if needed
+  let sarvamSpeaker: TextToSpeechSpeaker;
+  if (typeof voiceName === 'string') {
+    sarvamSpeaker = (TextToSpeechSpeaker as any)[voiceName] || TextToSpeechSpeaker.Manisha;
+  } else {
+    sarvamSpeaker = voiceName || TextToSpeechSpeaker.Manisha;
+  }
+
+  const response = await client.textToSpeech.convert({
+    inputs: [text],
+    pace: audio_speed,
+    target_language_code: 'hi-IN',
+    enable_preprocessing: true,
+    model: "bulbul:v2",
+    speaker: sarvamSpeaker,
+  });
+
+  return Buffer.from(response.audios[0], 'base64');
 }

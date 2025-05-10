@@ -1,7 +1,7 @@
 import ConversationManager from "./ConversationManager";
 import { Database } from "sqlite";
 import { TeacherPersona } from "./types";
-import { Langfuse } from "langfuse"; 
+import { Langfuse } from "langfuse";
 
 const langfuse = new Langfuse({
   publicKey: process.env.LANGFUSE_PUBLIC_KEY,
@@ -67,4 +67,14 @@ export async function loadTeacherPersona(sessionId: string, db: Database): Promi
   }
 
   return persona;
+}
+
+export function getScriptToWriteIn(language: string): string {
+
+  if (language.toLowerCase().trim() == 'hinglish'
+    && process.env.GENERATE_AUDIO_USING === 'sarvam') {
+    return `Return what to 'speak' in Hinglish in Devanagari script only`;
+  }
+
+  return '';
 }

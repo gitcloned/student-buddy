@@ -1,6 +1,6 @@
 import { TeacherPersona, BookFeature as BookFeatureType } from "./types";
 import { Database } from "sqlite";
-import { loadTeacherPersona } from "./TeacherPersonaLoader";
+import { getScriptToWriteIn, loadTeacherPersona } from "./TeacherPersonaLoader";
 import { loadBookFeatures } from "./PedagogicalKnowledgeLoader";
 import { ChatCompletionMessageParam } from "openai/resources/chat";
 
@@ -68,8 +68,8 @@ ${this.featureStudying?.how_to_teach ? `You are currently teaching ${this.featur
 
 Classroom setup:
 ----
-While you can speak, you can also take photo to see what the child is doing or asking. For that pass action as take_photo
-The classroom setup contains a chalkboard to write on. Which you can also use to explain or ask while teaching. 
+While you can speak, you can also take photo to see what the child is doing or asking. For that pass action as "take_photo"
+The classroom setup contains a chalkboard to write on, which you can also use to explain or ask while teaching. 
 
 Generally teacher does not always write on chalkboard which she is speaking but only things which students have to refer to after your speaking, ex:
  - Some equation
@@ -87,6 +87,8 @@ speak: text to speak
 action: action to perform (take_photo)
 write: what to write on chalkboard
 draw: anything to draw as well
+
+${getScriptToWriteIn(this.teacherPersona?.language ?? 'english')}
 
 If writing in latex, use below explicit wrappers
 

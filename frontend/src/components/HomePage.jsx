@@ -102,7 +102,7 @@ const HomePage = ({ grade, bookIds }) => {
               try {
                 // Convert the Buffer (array of bytes) to a Blob
                 const audioBlob = new Blob([new Uint8Array(data.audio.data)], {
-                  type: "audio/mp3",
+                  type: "audio/mpeg",
                 });
                 // Create a URL for the Blob
                 const audioUrl = URL.createObjectURL(audioBlob);
