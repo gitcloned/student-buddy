@@ -1,10 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { personasApi, booksApi, TeacherPersona, Book } from '../services/api';
+import { 
+  personasApi, booksApi, gradesApi, teachersApi, subjectsApi,
+  childrenApi, chaptersApi, topicsApi, lessonPlansApi,
+  lessonSectionsApi, resourcesApi, learningLevelsApi
+} from '../services/api';
 
 const Dashboard: React.FC = () => {
-  const [personasCount, setPersonasCount] = useState<number>(0);
-  const [booksCount, setBooksCount] = useState<number>(0);
+  const [entityCounts, setEntityCounts] = useState({
+    personas: 0,
+    books: 0,
+    grades: 0,
+    teachers: 0,
+    subjects: 0,
+    children: 0,
+    chapters: 0,
+    topics: 0,
+    lessonPlans: 0,
+    lessonSections: 0,
+    resources: 0,
+    learningLevels: 0
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,13 +28,39 @@ const Dashboard: React.FC = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [personas, books] = await Promise.all([
+        const [
+          personas, books, grades, teachers, subjects,
+          children, chapters, topics, lessonPlans, 
+          lessonSections, resources, learningLevels
+        ] = await Promise.all([
           personasApi.getAll(),
-          booksApi.getAll()
+          booksApi.getAll(),
+          gradesApi.getAll(),
+          teachersApi.getAll(),
+          subjectsApi.getAll(),
+          childrenApi.getAll(),
+          chaptersApi.getAll(),
+          topicsApi.getAll(),
+          lessonPlansApi.getAll(),
+          lessonSectionsApi.getAll(),
+          resourcesApi.getAll(),
+          learningLevelsApi.getAll()
         ]);
         
-        setPersonasCount(personas.length);
-        setBooksCount(books.length);
+        setEntityCounts({
+          personas: personas.length,
+          books: books.length,
+          grades: grades.length,
+          teachers: teachers.length,
+          subjects: subjects.length,
+          children: children.length,
+          chapters: chapters.length,
+          topics: topics.length,
+          lessonPlans: lessonPlans.length,
+          lessonSections: lessonSections.length,
+          resources: resources.length,
+          learningLevels: learningLevels.length
+        });
         setError(null);
       } catch (err) {
         setError('Failed to load dashboard data. Please try again.');
@@ -47,40 +89,122 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  const cardItems = [
+    {
+      title: 'Grades',
+      count: entityCounts.grades,
+      linkTo: '/grades',
+      icon: '🎓'
+    },
+    {
+      title: 'Teacher Personas',
+      count: entityCounts.personas,
+      linkTo: '/personas',
+      icon: '👨‍🏫'
+    },
+    {
+      title: 'Teachers',
+      count: entityCounts.teachers,
+      linkTo: '/teachers',
+      icon: '👩‍🏫'
+    },
+    {
+      title: 'Subjects',
+      count: entityCounts.subjects,
+      linkTo: '/subjects',
+      icon: '📚'
+    },
+    {
+      title: 'Children',
+      count: entityCounts.children,
+      linkTo: '/children',
+      icon: '👶'
+    },
+    {
+      title: 'Chapters',
+      count: entityCounts.chapters,
+      linkTo: '/chapters',
+      icon: '📖'
+    },
+    {
+      title: 'Topics',
+      count: entityCounts.topics,
+      linkTo: '/topics',
+      icon: '🔍'
+    },
+    {
+      title: 'Lesson Plans',
+      count: entityCounts.lessonPlans,
+      linkTo: '/lesson-plans',
+      icon: '📝'
+    },
+    {
+      title: 'Lesson Sections',
+      count: entityCounts.lessonSections,
+      linkTo: '/lesson-sections',
+      icon: '📋'
+    },
+    {
+      title: 'Resources',
+      count: entityCounts.resources,
+      linkTo: '/resources',
+      icon: '🧩'
+    },
+    {
+      title: 'Learning Levels',
+      count: entityCounts.learningLevels,
+      linkTo: '/learning-levels',
+      icon: '📊'
+    },
+    {
+      title: 'Books & Features',
+      count: entityCounts.books,
+      linkTo: '/books',
+      icon: '📕'
+    }
+  ];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="card">
-        <h3 className="text-lg font-semibold mb-4">Teacher Personas</h3>
-        <div className="flex justify-between items-center">
-          <div className="text-3xl font-bold">{personasCount}</div>
-          <Link to="/personas" className="btn btn-primary">
-            Manage Personas
-          </Link>
-        </div>
+    <div>
+      <h2 className="text-2xl font-bold mb-6">Student Buddy Admin Dashboard</h2>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {cardItems.map((item, index) => (
+          <div key={index} className="card hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-center mb-3">
+              <span className="text-2xl mr-2">{item.icon}</span>
+              <h3 className="text-lg font-semibold">{item.title}</h3>
+            </div>
+            <div className="flex justify-between items-center">
+              <div className="text-3xl font-bold">{item.count}</div>
+              <Link to={item.linkTo} className="btn btn-sm btn-primary">
+                Manage
+              </Link>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="card">
-        <h3 className="text-lg font-semibold mb-4">Books & Features</h3>
-        <div className="flex justify-between items-center">
-          <div className="text-3xl font-bold">{booksCount}</div>
-          <Link to="/books" className="btn btn-primary">
-            Manage Books
-          </Link>
-        </div>
-      </div>
-
-      <div className="card md:col-span-2">
+      <div className="card mt-6">
         <h3 className="text-lg font-semibold mb-4">Getting Started</h3>
         <p className="mb-4">
-          Welcome to the AI Tutor Admin panel. Here you can manage:
+          Welcome to the Student Buddy Admin panel. Here you can manage all entities in the educational system:
         </p>
-        <ul className="list-disc pl-6 mb-4">
-          <li>Teacher personas with specific grade levels and teaching styles</li>
-          <li>Books with educational features</li>
-          <li>Book features with subjects, names, and teaching methodologies</li>
+        <ul className="list-disc pl-6 mb-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+          <li>Grades - educational levels</li>
+          <li>Teacher Personas - personality templates for teachers</li>
+          <li>Teachers - instructors with specific teaching styles</li>
+          <li>Subjects - academic disciplines taught to children</li>
+          <li>Children - students enrolled in various subjects</li>
+          <li>Chapters - larger sections of study within subjects</li>
+          <li>Topics - specific areas of study within chapters</li>
+          <li>Lesson Plans - structured learning materials for topics</li>
+          <li>Lesson Sections - components that make up a lesson plan</li>
+          <li>Resources - educational materials used in lessons</li>
+          <li>Learning Levels - progress tracking for children</li>
         </ul>
         <p>
-          Use the navigation menu on the left to access different sections of the admin panel.
+          Use the navigation menu on the left or the cards above to access different sections of the admin panel.
         </p>
       </div>
     </div>

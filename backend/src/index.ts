@@ -32,10 +32,124 @@ async function initializeDatabase() {
   });
 
   await db.exec(`
+    CREATE TABLE IF NOT EXISTS grades (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS teacher_personas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      grade TEXT NOT NULL,
-      persona TEXT NOT NULL
+      grade_id INTEGER,
+      persona TEXT NOT NULL,
+      language TEXT NOT NULL CHECK (language IN ('hinglish', 'english', 'hindi')),
+      tone TEXT NOT NULL CHECK (tone IN ('candid', 'formal')),
+      motivation TEXT NOT NULL CHECK (motivation IN ('supportive', 'disciplinary')),
+      humor TEXT NOT NULL CHECK (humor IN ('light', 'none', 'medium')),
+      FOREIGN KEY (grade_id) REFERENCES grades(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS teachers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      persona_id INTEGER,
+      teaching_style TEXT NOT NULL,
+      FOREIGN KEY (persona_id) REFERENCES teacher_personas(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS subjects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      grade_id INTEGER,
+      FOREIGN KEY (grade_id) REFERENCES grades(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS children (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      grade_id INTEGER,
+      FOREIGN KEY (grade_id) REFERENCES grades(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS chapters (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      subject_id INTEGER,
+      FOREIGN KEY (subject_id) REFERENCES subjects(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS topics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      chapter_id INTEGER,
+      FOREIGN KEY (chapter_id) REFERENCES chapters(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS topic_prerequisites (
+      topic_id INTEGER,
+      prerequisite_topic_id INTEGER,
+      FOREIGN KEY (topic_id) REFERENCES topics(id),
+      FOREIGN KEY (prerequisite_topic_id) REFERENCES topics(id),
+      PRIMARY KEY (topic_id, prerequisite_topic_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS lesson_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      child_id INTEGER,
+      topic_id INTEGER,
+      learning_objective TEXT NOT NULL,
+      FOREIGN KEY (child_id) REFERENCES children(id),
+      FOREIGN KEY (topic_id) REFERENCES topics(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS lesson_sections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      lesson_plan_id INTEGER,
+      type TEXT CHECK (type IN ('I Do', 'We Do', 'You Do')),
+      teaching_pedagogy TEXT NOT NULL,
+      FOREIGN KEY (lesson_plan_id) REFERENCES lesson_plans(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS resources (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT CHECK (type IN ('Concept Video', 'Question', 'Quiz', 'Practice Test')),
+      url TEXT NOT NULL,
+      metadata TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS section_resources (
+      section_id INTEGER,
+      resource_id INTEGER,
+      FOREIGN KEY (section_id) REFERENCES lesson_sections(id),
+      FOREIGN KEY (resource_id) REFERENCES resources(id),
+      PRIMARY KEY (section_id, resource_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS learning_levels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      child_id INTEGER,
+      topic_id INTEGER,
+      level TEXT CHECK (level IN ('Weak', 'Average', 'Strong')),
+      do_not_understand TEXT,
+      what_next TEXT,
+      last_evaluated_on TEXT,
+      FOREIGN KEY (child_id) REFERENCES children(id),
+      FOREIGN KEY (topic_id) REFERENCES topics(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS child_subjects (
+      child_id INTEGER,
+      subject_id INTEGER,
+      FOREIGN KEY (child_id) REFERENCES children(id),
+      FOREIGN KEY (subject_id) REFERENCES subjects(id),
+      PRIMARY KEY (child_id, subject_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS teacher_subjects (
+      teacher_id INTEGER,
+      subject_id INTEGER,
+      FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+      FOREIGN KEY (subject_id) REFERENCES subjects(id),
+      PRIMARY KEY (teacher_id, subject_id)
     );
 
     CREATE TABLE IF NOT EXISTS books (
