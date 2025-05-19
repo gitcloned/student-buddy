@@ -56,7 +56,7 @@ export interface LessonPlan {
     title: string;
     topic_id: number;
     teacher_id: number;
-    learning_level_id: number;
+    learning_level_id: number; // Direct level value (1-5), not a reference to a LearningLevel entity
     duration_minutes: number;
     objectives: string;
 }
@@ -68,7 +68,7 @@ export interface LessonSection {
     content: string;
     duration_minutes: number;
     order_index?: number;
-    type?: 'I Do' | 'We Do' | 'You Do';
+    type: 'Introduction' | 'I Do' | 'We Do' | 'You Do' | 'Assessment' | 'Homework';
     teaching_pedagogy?: string;
 }
 
@@ -78,7 +78,6 @@ export interface Resource {
     type: 'Concept Video' | 'Question' | 'Quiz' | 'Practice Test';
     url: string;
     description?: string;
-    metadata?: string;
 }
 
 export interface SectionResource {
@@ -90,7 +89,7 @@ export interface LearningLevel {
     id?: number;
     child_id: number;
     topic_id: number;
-    level: number; // Changed to number to match backend
+    level: string; // Changed to number to match backend
     notes: string; // Added to match backend
     do_not_understand?: string;
     what_next?: string;

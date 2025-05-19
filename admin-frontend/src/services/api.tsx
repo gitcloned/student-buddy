@@ -428,8 +428,8 @@ export const lessonSectionsApi = {
   
   create: async (section: { 
     lesson_plan_id: number, 
-    title: string, 
-    content: string, 
+    type: string, 
+    teaching_pedagogy: string, 
     duration_minutes: number,
     order_index: number
   }): Promise<LessonSection> => {
@@ -439,8 +439,8 @@ export const lessonSectionsApi = {
   
   update: async (id: number, section: { 
     lesson_plan_id: number, 
-    title: string, 
-    content: string, 
+    type: string, 
+    teaching_pedagogy: string, 
     duration_minutes: number,
     order_index: number
   }): Promise<LessonSection> => {
@@ -529,7 +529,7 @@ export const learningLevelsApi = {
   create: async (level: { 
     child_id: number, 
     topic_id: number, 
-    level: number, 
+    level: string, 
     notes: string
   }): Promise<LearningLevel> => {
     const response = await apiClient.post('/learning-levels', level);
@@ -539,7 +539,7 @@ export const learningLevelsApi = {
   update: async (id: number, level: { 
     child_id: number, 
     topic_id: number, 
-    level: number, 
+    level: string, 
     notes: string
   }): Promise<LearningLevel> => {
     const response = await apiClient.put(`/learning-levels/${id}`, level);

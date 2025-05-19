@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { lessonSectionsApi, resourcesApi, Resource, LessonSection } from '../../services/api';
 
@@ -16,6 +16,9 @@ const SectionResourcesForm: React.FC = () => {
   const [selectedResources, setSelectedResources] = useState<number[]>([]);
   const [availableResources, setAvailableResources] = useState<Resource[]>([]);
   const [sectionResources, setSectionResources] = useState<Resource[]>([]);
+  
+  // Keep track of the original resource IDs to properly determine what changed
+  const originalResourceIds = useRef<number[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,10 +39,14 @@ const SectionResourcesForm: React.FC = () => {
         setSectionResources(sectionResourcesData);
         
         // Initialize selected resources with current associations
-        setSelectedResources(sectionResourcesData.map(resource => resource.id as number));
+        const currentResourceIds = sectionResourcesData.map(resource => resource.id as number);
+        setSelectedResources(currentResourceIds);
+        
+        // Store the original resource IDs for comparison during save
+        originalResourceIds.current = [...currentResourceIds];
         
         // Filter out resources already associated with this section
-        const associatedIds = new Set(sectionResourcesData.map(r => r.id));
+        const associatedIds = new Set(currentResourceIds);
         setAvailableResources(allResourcesData.filter(r => !associatedIds.has(r.id)));
         
         setError(null);
@@ -84,23 +91,30 @@ const SectionResourcesForm: React.FC = () => {
       setError(null);
       setSuccess(null);
       
-      // Remove all existing resources first
-      for (const resource of sectionResources) {
-        if (resource.id && !selectedResources.includes(resource.id)) {
-          await lessonSectionsApi.removeResource(parseInt(sectionId!), resource.id);
-        }
+      // Find resources to remove (resources that were in original list but not in selected)
+      const resourcesToRemove = originalResourceIds.current.filter(
+        id => !selectedResources.includes(id)
+      );
+      
+      // Find resources to add (resources that are in selected but not in original list)
+      const resourcesToAdd = selectedResources.filter(
+        id => !originalResourceIds.current.includes(id)
+      );
+      
+      // Remove resources that are no longer selected
+      for (const resourceId of resourcesToRemove) {
+        await lessonSectionsApi.removeResource(parseInt(sectionId!), resourceId);
       }
       
       // Add newly selected resources
-      for (const resourceId of selectedResources) {
-        // Check if this resource is not already in the section
-        if (!sectionResources.some(r => r.id === resourceId)) {
-          await lessonSectionsApi.addResource(parseInt(sectionId!), resourceId);
-        }
+      for (const resourceId of resourcesToAdd) {
+        await lessonSectionsApi.addResource(parseInt(sectionId!), resourceId);
       }
       
       setSuccess('Resources updated successfully!');
       // No need to navigate away - stay on the same page
+
+      originalResourceIds.current = [...selectedResources];
     } catch (err) {
       setError('Failed to update resources. Please try again.');
       console.error('Resources update error:', err);

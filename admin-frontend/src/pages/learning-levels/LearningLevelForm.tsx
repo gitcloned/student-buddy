@@ -13,7 +13,7 @@ const LearningLevelForm: React.FC = () => {
   const [formValues, setFormValues] = useState<{ 
     child_id: number | string;
     topic_id: number | string;
-    level: number | string;
+    level: string;
     notes: string;
   }>({ 
     child_id: '',
@@ -24,11 +24,9 @@ const LearningLevelForm: React.FC = () => {
 
   // Define levels for dropdown
   const levelOptions = [
-    { value: 1, label: 'Level 1 - Beginner' },
-    { value: 2, label: 'Level 2 - Basic' },
-    { value: 3, label: 'Level 3 - Intermediate' },
-    { value: 4, label: 'Level 4 - Advanced' },
-    { value: 5, label: 'Level 5 - Expert' },
+    { value: 'Weak', label: 'Weak' },
+    { value: 'Average', label: 'Average' },
+    { value: 'Strong', label: 'Strong' }
   ];
 
   useEffect(() => {
@@ -95,7 +93,7 @@ const LearningLevelForm: React.FC = () => {
       const learningLevelData = {
         child_id: Number(formValues.child_id),
         topic_id: Number(formValues.topic_id),
-        level: Number(formValues.level),
+        level: formValues.level,
         notes: formValues.notes
       };
       

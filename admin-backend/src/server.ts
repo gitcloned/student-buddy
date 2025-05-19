@@ -84,26 +84,32 @@ async function initializeDatabase() {
 
     CREATE TABLE IF NOT EXISTS lesson_plans (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      child_id INTEGER,
+      title TEXT NOT NULL,
       topic_id INTEGER,
-      learning_objective TEXT NOT NULL,
-      FOREIGN KEY (child_id) REFERENCES children(id),
-      FOREIGN KEY (topic_id) REFERENCES topics(id)
+      teacher_id INTEGER,
+      learning_level_id INTEGER CHECK (learning_level_id BETWEEN 1 AND 5),
+      duration_minutes INTEGER,
+      objectives TEXT NOT NULL,
+      FOREIGN KEY (topic_id) REFERENCES topics(id),
+      FOREIGN KEY (teacher_id) REFERENCES teachers(id)
     );
 
     CREATE TABLE IF NOT EXISTS lesson_sections (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       lesson_plan_id INTEGER,
-      type TEXT CHECK (type IN ('I Do', 'We Do', 'You Do')),
+      type TEXT CHECK (type IN ('Introduction', 'I Do', 'We Do', 'You Do', 'Assessment', 'Homework')),
       teaching_pedagogy TEXT NOT NULL,
+      duration_minutes INTEGER,
+      order_index INTEGER,
       FOREIGN KEY (lesson_plan_id) REFERENCES lesson_plans(id)
     );
 
     CREATE TABLE IF NOT EXISTS resources (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
       type TEXT CHECK (type IN ('Concept Video', 'Question', 'Quiz', 'Practice Test')),
       url TEXT NOT NULL,
-      metadata TEXT
+      description TEXT
     );
 
     CREATE TABLE IF NOT EXISTS section_resources (
@@ -487,7 +493,7 @@ app.get("/api/grades/:id", async (req: Request, res: Response) => {
 
 app.post("/api/grades", async (req: Request, res: Response) => {
   const { name } = req.body;
-  
+
   if (!name) {
     res.status(400).json({ error: "Name is required" });
     return;
@@ -535,7 +541,7 @@ app.delete("/api/grades/:id", async (req: Request, res: Response) => {
     const childrenUsingGrade = await db.get("SELECT COUNT(*) as count FROM children WHERE grade_id = ?", id);
     const subjectsUsingGrade = await db.get("SELECT COUNT(*) as count FROM subjects WHERE grade_id = ?", id);
     const personasUsingGrade = await db.get("SELECT COUNT(*) as count FROM teacher_personas WHERE grade_id = ?", id);
-    
+
     if (childrenUsingGrade.count > 0 || subjectsUsingGrade.count > 0 || personasUsingGrade.count > 0) {
       res.status(400).json({ error: "Cannot delete grade as it is referenced by children, subjects, or teacher personas" });
       return;
@@ -576,7 +582,7 @@ app.get("/api/subjects/:id", async (req: Request, res: Response) => {
 
 app.post("/api/subjects", async (req: Request, res: Response) => {
   const { name, grade_id } = req.body;
-  
+
   if (!name || !grade_id) {
     res.status(400).json({ error: "Name and grade_id are required" });
     return;
@@ -638,7 +644,7 @@ app.delete("/api/subjects/:id", async (req: Request, res: Response) => {
     const chaptersUsingSubject = await db.get("SELECT COUNT(*) as count FROM chapters WHERE subject_id = ?", id);
     const childSubjectsCount = await db.get("SELECT COUNT(*) as count FROM child_subjects WHERE subject_id = ?", id);
     const teacherSubjectsCount = await db.get("SELECT COUNT(*) as count FROM teacher_subjects WHERE subject_id = ?", id);
-    
+
     if (chaptersUsingSubject.count > 0 || childSubjectsCount.count > 0 || teacherSubjectsCount.count > 0) {
       res.status(400).json({ error: "Cannot delete subject as it is referenced by chapters, children, or teachers" });
       return;
@@ -679,7 +685,7 @@ app.get("/api/teachers/:id", async (req: Request, res: Response) => {
 
 app.post("/api/teachers", async (req: Request, res: Response) => {
   const { name, persona_id, teaching_style } = req.body;
-  
+
   if (!name || !teaching_style) {
     res.status(400).json({ error: "Name and teaching style are required" });
     return;
@@ -725,7 +731,7 @@ app.delete("/api/teachers/:id", async (req: Request, res: Response) => {
   try {
     // Check if teacher is being used by any relationships before deleting
     const teacherSubjectsCount = await db.get("SELECT COUNT(*) as count FROM teacher_subjects WHERE teacher_id = ?", id);
-    
+
     if (teacherSubjectsCount.count > 0) {
       res.status(400).json({ error: "Cannot delete teacher as they are assigned to subjects" });
       return;
@@ -771,7 +777,7 @@ app.get("/api/subjects/:id/chapters", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Subject not found" });
       return;
     }
-    
+
     const chapters = await db.all("SELECT * FROM chapters WHERE subject_id = ?", req.params.id);
     res.json(chapters);
   } catch (error) {
@@ -782,7 +788,7 @@ app.get("/api/subjects/:id/chapters", async (req: Request, res: Response) => {
 
 app.post("/api/chapters", async (req: Request, res: Response) => {
   const { name, subject_id } = req.body;
-  
+
   if (!name || !subject_id) {
     res.status(400).json({ error: "Name and subject_id are required" });
     return;
@@ -842,7 +848,7 @@ app.delete("/api/chapters/:id", async (req: Request, res: Response) => {
   try {
     // Check if chapter is being used by any topics before deleting
     const topicsCount = await db.get("SELECT COUNT(*) as count FROM topics WHERE chapter_id = ?", id);
-    
+
     if (topicsCount.count > 0) {
       res.status(400).json({ error: "Cannot delete chapter as it has topics associated with it" });
       return;
@@ -883,7 +889,7 @@ app.get("/api/children/:id", async (req: Request, res: Response) => {
 
 app.post("/api/children", async (req: Request, res: Response) => {
   const { name, grade_id } = req.body;
-  
+
   if (!name || !grade_id) {
     res.status(400).json({ error: "Name and grade_id are required" });
     return;
@@ -945,7 +951,7 @@ app.delete("/api/children/:id", async (req: Request, res: Response) => {
     const lessonPlansCount = await db.get("SELECT COUNT(*) as count FROM lesson_plans WHERE child_id = ?", id);
     const childSubjectsCount = await db.get("SELECT COUNT(*) as count FROM child_subjects WHERE child_id = ?", id);
     const learningLevelsCount = await db.get("SELECT COUNT(*) as count FROM learning_levels WHERE child_id = ?", id);
-    
+
     if (lessonPlansCount.count > 0 || childSubjectsCount.count > 0 || learningLevelsCount.count > 0) {
       res.status(400).json({ error: "Cannot delete child as they are associated with lesson plans, subjects, or learning levels" });
       return;
@@ -991,7 +997,7 @@ app.get("/api/chapters/:id/topics", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Chapter not found" });
       return;
     }
-    
+
     const topics = await db.all("SELECT * FROM topics WHERE chapter_id = ?", req.params.id);
     res.json(topics);
   } catch (error) {
@@ -1002,7 +1008,7 @@ app.get("/api/chapters/:id/topics", async (req: Request, res: Response) => {
 
 app.post("/api/topics", async (req: Request, res: Response) => {
   const { name, chapter_id } = req.body;
-  
+
   if (!name || !chapter_id) {
     res.status(400).json({ error: "Name and chapter_id are required" });
     return;
@@ -1064,7 +1070,7 @@ app.delete("/api/topics/:id", async (req: Request, res: Response) => {
     const prerequisitesCount = await db.get("SELECT COUNT(*) as count FROM topic_prerequisites WHERE topic_id = ? OR prerequisite_topic_id = ?", [id, id]);
     const lessonPlansCount = await db.get("SELECT COUNT(*) as count FROM lesson_plans WHERE topic_id = ?", id);
     const learningLevelsCount = await db.get("SELECT COUNT(*) as count FROM learning_levels WHERE topic_id = ?", id);
-    
+
     if (prerequisitesCount.count > 0 || lessonPlansCount.count > 0 || learningLevelsCount.count > 0) {
       res.status(400).json({ error: "Cannot delete topic as it is referenced by prerequisites, lesson plans, or learning levels" });
       return;
@@ -1086,7 +1092,7 @@ app.get("/api/topics/:id/prerequisites", async (req: Request, res: Response) => 
       res.status(404).json({ error: "Topic not found" });
       return;
     }
-    
+
     const prerequisites = await db.all(`
       SELECT t.* FROM topics t
       JOIN topic_prerequisites tp ON t.id = tp.prerequisite_topic_id
@@ -1102,7 +1108,7 @@ app.get("/api/topics/:id/prerequisites", async (req: Request, res: Response) => 
 app.post("/api/topics/:id/prerequisites", async (req: Request, res: Response) => {
   const { prerequisite_topic_id } = req.body;
   const topic_id = req.params.id;
-  
+
   if (!prerequisite_topic_id) {
     res.status(400).json({ error: "Prerequisite topic ID is required" });
     return;
@@ -1115,27 +1121,27 @@ app.post("/api/topics/:id/prerequisites", async (req: Request, res: Response) =>
       res.status(404).json({ error: "Topic not found" });
       return;
     }
-    
+
     const prerequisiteExists = await db.get("SELECT id FROM topics WHERE id = ?", prerequisite_topic_id);
     if (!prerequisiteExists) {
       res.status(404).json({ error: "Prerequisite topic not found" });
       return;
     }
-    
+
     // Check if already exists
     const existingPrereq = await db.get("SELECT * FROM topic_prerequisites WHERE topic_id = ? AND prerequisite_topic_id = ?", [topic_id, prerequisite_topic_id]);
     if (existingPrereq) {
       res.status(400).json({ error: "This prerequisite relationship already exists" });
       return;
     }
-    
+
     // Prevent circular references
     const reversePrereq = await db.get("SELECT * FROM topic_prerequisites WHERE topic_id = ? AND prerequisite_topic_id = ?", [prerequisite_topic_id, topic_id]);
     if (reversePrereq) {
       res.status(400).json({ error: "Cannot create circular prerequisite relationship" });
       return;
     }
-    
+
     await db.run("INSERT INTO topic_prerequisites (topic_id, prerequisite_topic_id) VALUES (?, ?)", [topic_id, prerequisite_topic_id]);
     res.status(201).json({ topic_id, prerequisite_topic_id });
   } catch (error) {
@@ -1150,12 +1156,12 @@ app.delete("/api/topics/:id/prerequisites/:prerequisiteId", async (req: Request,
 
   try {
     const result = await db.run("DELETE FROM topic_prerequisites WHERE topic_id = ? AND prerequisite_topic_id = ?", [topic_id, prerequisite_topic_id]);
-    
+
     if (result.changes === 0) {
       res.status(404).json({ error: "Prerequisite relationship not found" });
       return;
     }
-    
+
     res.status(204).send();
   } catch (error) {
     console.error("Error removing prerequisite:", error);
@@ -1195,7 +1201,7 @@ app.get("/api/children/:id/lesson-plans", async (req: Request, res: Response) =>
       res.status(404).json({ error: "Child not found" });
       return;
     }
-    
+
     const lessonPlans = await db.all("SELECT * FROM lesson_plans WHERE child_id = ?", req.params.id);
     res.json(lessonPlans);
   } catch (error) {
@@ -1211,7 +1217,7 @@ app.get("/api/topics/:id/lesson-plans", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Topic not found" });
       return;
     }
-    
+
     const lessonPlans = await db.all("SELECT * FROM lesson_plans WHERE topic_id = ?", req.params.id);
     res.json(lessonPlans);
   } catch (error) {
@@ -1221,28 +1227,37 @@ app.get("/api/topics/:id/lesson-plans", async (req: Request, res: Response) => {
 });
 
 app.post("/api/lesson-plans", async (req: Request, res: Response) => {
-  const { child_id, topic_id, learning_objective } = req.body;
-  
-  if (!child_id || !topic_id || !learning_objective) {
-    res.status(400).json({ error: "Child ID, topic ID, and learning objective are required" });
+  const { title, topic_id, teacher_id, learning_level_id, duration_minutes, objectives } = req.body;
+
+  if (!title || !topic_id || !teacher_id || !learning_level_id || !duration_minutes || !objectives) {
+    res.status(400).json({ error: "Title, topic ID, teacher ID, learning level, duration, and objectives are required" });
     return;
   }
 
   try {
-    // Verify that the child_id and topic_id exist
-    const childExists = await db.get("SELECT id FROM children WHERE id = ?", child_id);
-    if (!childExists) {
-      res.status(400).json({ error: "Invalid child_id" });
-      return;
-    }
-    
+    // Verify that the topic_id and teacher_id exist
     const topicExists = await db.get("SELECT id FROM topics WHERE id = ?", topic_id);
     if (!topicExists) {
       res.status(400).json({ error: "Invalid topic_id" });
       return;
     }
 
-    const result = await db.run("INSERT INTO lesson_plans (child_id, topic_id, learning_objective) VALUES (?, ?, ?)", [child_id, topic_id, learning_objective]);
+    const teacherExists = await db.get("SELECT id FROM teachers WHERE id = ?", teacher_id);
+    if (!teacherExists) {
+      res.status(400).json({ error: "Invalid teacher_id" });
+      return;
+    }
+
+    // Verify that learning_level_id is between 1 and 5
+    if (learning_level_id < 1 || learning_level_id > 5) {
+      res.status(400).json({ error: "Learning level must be between 1 and 5" });
+      return;
+    }
+
+    const result = await db.run(
+      "INSERT INTO lesson_plans (title, topic_id, teacher_id, learning_level_id, duration_minutes, objectives) VALUES (?, ?, ?, ?, ?, ?)",
+      [title, topic_id, teacher_id, learning_level_id, duration_minutes, objectives]
+    );
     const id = result.lastID;
     const lessonPlan = await db.get("SELECT * FROM lesson_plans WHERE id = ?", id);
     res.status(201).json(lessonPlan);
@@ -1253,34 +1268,45 @@ app.post("/api/lesson-plans", async (req: Request, res: Response) => {
 });
 
 app.put("/api/lesson-plans/:id", async (req: Request, res: Response) => {
-  const { child_id, topic_id, learning_objective } = req.body;
+  const { title, topic_id, teacher_id, learning_level_id, duration_minutes, objectives } = req.body;
   const id = req.params.id;
 
-  if (!child_id || !topic_id || !learning_objective) {
-    res.status(400).json({ error: "Child ID, topic ID, and learning objective are required" });
+  if (!title || !topic_id || !teacher_id || !learning_level_id || !duration_minutes || !objectives) {
+    res.status(400).json({ error: "Title, topic ID, teacher ID, learning level, duration, and objectives are required" });
     return;
   }
 
   try {
-    // Verify that the child_id and topic_id exist
-    const childExists = await db.get("SELECT id FROM children WHERE id = ?", child_id);
-    if (!childExists) {
-      res.status(400).json({ error: "Invalid child_id" });
-      return;
-    }
-    
+    // Verify that the topic_id and teacher_id exist
     const topicExists = await db.get("SELECT id FROM topics WHERE id = ?", topic_id);
     if (!topicExists) {
       res.status(400).json({ error: "Invalid topic_id" });
       return;
     }
 
-    await db.run("UPDATE lesson_plans SET child_id = ?, topic_id = ?, learning_objective = ? WHERE id = ?", [child_id, topic_id, learning_objective, id]);
+    const teacherExists = await db.get("SELECT id FROM teachers WHERE id = ?", teacher_id);
+    if (!teacherExists) {
+      res.status(400).json({ error: "Invalid teacher_id" });
+      return;
+    }
+
+    // Verify that learning_level_id is between 1 and 5
+    if (learning_level_id < 1 || learning_level_id > 5) {
+      res.status(400).json({ error: "Learning level must be between 1 and 5" });
+      return;
+    }
+
+    await db.run(
+      "UPDATE lesson_plans SET title = ?, topic_id = ?, teacher_id = ?, learning_level_id = ?, duration_minutes = ?, objectives = ? WHERE id = ?",
+      [title, topic_id, teacher_id, learning_level_id, duration_minutes, objectives, id]
+    );
     const lessonPlan = await db.get("SELECT * FROM lesson_plans WHERE id = ?", id);
+
     if (!lessonPlan) {
       res.status(404).json({ error: "Lesson plan not found" });
       return;
     }
+
     res.json(lessonPlan);
   } catch (error) {
     console.error("Error updating lesson plan:", error);
@@ -1294,7 +1320,7 @@ app.delete("/api/lesson-plans/:id", async (req: Request, res: Response) => {
   try {
     // Check if lesson plan is being used by any lesson sections before deleting
     const sectionsCount = await db.get("SELECT COUNT(*) as count FROM lesson_sections WHERE lesson_plan_id = ?", id);
-    
+
     if (sectionsCount.count > 0) {
       res.status(400).json({ error: "Cannot delete lesson plan as it has sections associated with it" });
       return;
@@ -1340,7 +1366,7 @@ app.get("/api/lesson-plans/:id/sections", async (req: Request, res: Response) =>
       res.status(404).json({ error: "Lesson plan not found" });
       return;
     }
-    
+
     const sections = await db.all("SELECT * FROM lesson_sections WHERE lesson_plan_id = ?", req.params.id);
     res.json(sections);
   } catch (error) {
@@ -1350,10 +1376,10 @@ app.get("/api/lesson-plans/:id/sections", async (req: Request, res: Response) =>
 });
 
 app.post("/api/lesson-sections", async (req: Request, res: Response) => {
-  const { lesson_plan_id, type, teaching_pedagogy } = req.body;
-  
-  if (!lesson_plan_id || !type || !teaching_pedagogy) {
-    res.status(400).json({ error: "Lesson plan ID, type, and teaching pedagogy are required" });
+  const { lesson_plan_id, type, teaching_pedagogy, duration_minutes, order_index } = req.body;
+
+  if (!lesson_plan_id || !type || !teaching_pedagogy || !duration_minutes || !order_index) {
+    res.status(400).json({ error: "Lesson plan ID, type, teaching pedagogy, duration minutes, and order index are required" });
     return;
   }
 
@@ -1364,16 +1390,16 @@ app.post("/api/lesson-sections", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid lesson_plan_id" });
       return;
     }
-    
+
     // Validate the type
-    if (!['I Do', 'We Do', 'You Do'].includes(type)) {
-      res.status(400).json({ error: "Type must be one of: 'I Do', 'We Do', 'You Do'" });
+    if (!['Introduction', 'I Do', 'We Do', 'You Do', 'Assessment', 'Homework'].includes(type)) {
+      res.status(400).json({ error: "Type must be one of: 'Introduction', 'I Do', 'We Do', 'You Do', 'Assessment', 'Homework'" });
       return;
     }
 
     const result = await db.run(
-      "INSERT INTO lesson_sections (lesson_plan_id, type, teaching_pedagogy) VALUES (?, ?, ?)", 
-      [lesson_plan_id, type, teaching_pedagogy]
+      "INSERT INTO lesson_sections (lesson_plan_id, type, teaching_pedagogy, duration_minutes, order_index) VALUES (?, ?, ?, ?, ?)",
+      [lesson_plan_id, type, teaching_pedagogy, duration_minutes, order_index]
     );
     const id = result.lastID;
     const lessonSection = await db.get("SELECT * FROM lesson_sections WHERE id = ?", id);
@@ -1400,15 +1426,15 @@ app.put("/api/lesson-sections/:id", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid lesson_plan_id" });
       return;
     }
-    
+
     // Validate the type
-    if (!['I Do', 'We Do', 'You Do'].includes(type)) {
-      res.status(400).json({ error: "Type must be one of: 'I Do', 'We Do', 'You Do'" });
+    if (!['Introduction', 'I Do', 'We Do', 'You Do', 'Assessment', 'Homework'].includes(type)) {
+      res.status(400).json({ error: "Type must be one of: 'Introduction', 'I Do', 'We Do', 'You Do', 'Assessment', 'Homework'" });
       return;
     }
 
     await db.run(
-      "UPDATE lesson_sections SET lesson_plan_id = ?, type = ?, teaching_pedagogy = ? WHERE id = ?", 
+      "UPDATE lesson_sections SET lesson_plan_id = ?, type = ?, teaching_pedagogy = ? WHERE id = ?",
       [lesson_plan_id, type, teaching_pedagogy, id]
     );
     const lessonSection = await db.get("SELECT * FROM lesson_sections WHERE id = ?", id);
@@ -1429,7 +1455,7 @@ app.delete("/api/lesson-sections/:id", async (req: Request, res: Response) => {
   try {
     // Check if section has resources before deleting
     const resourcesCount = await db.get("SELECT COUNT(*) as count FROM section_resources WHERE section_id = ?", id);
-    
+
     if (resourcesCount.count > 0) {
       res.status(400).json({ error: "Cannot delete lesson section as it has resources associated with it" });
       return;
@@ -1469,8 +1495,8 @@ app.get("/api/resources/:id", async (req: Request, res: Response) => {
 });
 
 app.post("/api/resources", async (req: Request, res: Response) => {
-  const { type, url, metadata } = req.body;
-  
+  const { title, type, url, description } = req.body;
+
   if (!type || !url) {
     res.status(400).json({ error: "Type and URL are required" });
     return;
@@ -1484,8 +1510,8 @@ app.post("/api/resources", async (req: Request, res: Response) => {
     }
 
     const result = await db.run(
-      "INSERT INTO resources (type, url, metadata) VALUES (?, ?, ?)", 
-      [type, url, metadata]
+      "INSERT INTO resources (title, type, url, description) VALUES (?, ?, ?, ?)",
+      [title, type, url, description]
     );
     const id = result.lastID;
     const resource = await db.get("SELECT * FROM resources WHERE id = ?", id);
@@ -1497,7 +1523,7 @@ app.post("/api/resources", async (req: Request, res: Response) => {
 });
 
 app.put("/api/resources/:id", async (req: Request, res: Response) => {
-  const { type, url, metadata } = req.body;
+  const { title, type, url, description } = req.body;
   const id = req.params.id;
 
   if (!type || !url) {
@@ -1513,8 +1539,8 @@ app.put("/api/resources/:id", async (req: Request, res: Response) => {
     }
 
     await db.run(
-      "UPDATE resources SET type = ?, url = ?, metadata = ? WHERE id = ?", 
-      [type, url, metadata, id]
+      "UPDATE resources SET title = ?, type = ?, url = ?, description = ? WHERE id = ?",
+      [title, type, url, description, id]
     );
     const resource = await db.get("SELECT * FROM resources WHERE id = ?", id);
     if (!resource) {
@@ -1534,7 +1560,7 @@ app.delete("/api/resources/:id", async (req: Request, res: Response) => {
   try {
     // Check if resource is being used by any lesson sections
     const sectionsUsingResource = await db.get("SELECT COUNT(*) as count FROM section_resources WHERE resource_id = ?", id);
-    
+
     if (sectionsUsingResource.count > 0) {
       res.status(400).json({ error: "Cannot delete resource as it is being used in lesson sections" });
       return;
@@ -1556,7 +1582,7 @@ app.get("/api/lesson-sections/:id/resources", async (req: Request, res: Response
       res.status(404).json({ error: "Lesson section not found" });
       return;
     }
-    
+
     const resources = await db.all(`
       SELECT r.* FROM resources r
       JOIN section_resources sr ON r.id = sr.resource_id
@@ -1572,7 +1598,7 @@ app.get("/api/lesson-sections/:id/resources", async (req: Request, res: Response
 app.post("/api/lesson-sections/:id/resources", async (req: Request, res: Response) => {
   const { resource_id } = req.body;
   const section_id = req.params.id;
-  
+
   if (!resource_id) {
     res.status(400).json({ error: "Resource ID is required" });
     return;
@@ -1585,20 +1611,20 @@ app.post("/api/lesson-sections/:id/resources", async (req: Request, res: Respons
       res.status(404).json({ error: "Lesson section not found" });
       return;
     }
-    
+
     const resourceExists = await db.get("SELECT id FROM resources WHERE id = ?", resource_id);
     if (!resourceExists) {
       res.status(404).json({ error: "Resource not found" });
       return;
     }
-    
+
     // Check if already exists
     const existingRelation = await db.get("SELECT * FROM section_resources WHERE section_id = ? AND resource_id = ?", [section_id, resource_id]);
     if (existingRelation) {
       res.status(400).json({ error: "This section already has this resource" });
       return;
     }
-    
+
     await db.run("INSERT INTO section_resources (section_id, resource_id) VALUES (?, ?)", [section_id, resource_id]);
     res.status(201).json({ section_id, resource_id });
   } catch (error) {
@@ -1613,12 +1639,12 @@ app.delete("/api/lesson-sections/:id/resources/:resourceId", async (req: Request
 
   try {
     const result = await db.run("DELETE FROM section_resources WHERE section_id = ? AND resource_id = ?", [section_id, resource_id]);
-    
+
     if (result.changes === 0) {
       res.status(404).json({ error: "Resource not found in this section" });
       return;
     }
-    
+
     res.status(204).send();
   } catch (error) {
     console.error("Error removing resource from section:", error);
@@ -1658,7 +1684,7 @@ app.get("/api/children/:id/learning-levels", async (req: Request, res: Response)
       res.status(404).json({ error: "Child not found" });
       return;
     }
-    
+
     const learningLevels = await db.all("SELECT * FROM learning_levels WHERE child_id = ?", req.params.id);
     res.json(learningLevels);
   } catch (error) {
@@ -1674,7 +1700,7 @@ app.get("/api/topics/:id/learning-levels", async (req: Request, res: Response) =
       res.status(404).json({ error: "Topic not found" });
       return;
     }
-    
+
     const learningLevels = await db.all("SELECT * FROM learning_levels WHERE topic_id = ?", req.params.id);
     res.json(learningLevels);
   } catch (error) {
@@ -1685,7 +1711,7 @@ app.get("/api/topics/:id/learning-levels", async (req: Request, res: Response) =
 
 app.get("/api/children/:childId/topics/:topicId/learning-level", async (req: Request, res: Response) => {
   const { childId, topicId } = req.params;
-  
+
   try {
     const learningLevel = await db.get("SELECT * FROM learning_levels WHERE child_id = ? AND topic_id = ?", [childId, topicId]);
     if (!learningLevel) {
@@ -1702,7 +1728,7 @@ app.get("/api/children/:childId/topics/:topicId/learning-level", async (req: Req
 app.post("/api/learning-levels", async (req: Request, res: Response) => {
   const { child_id, topic_id, level, do_not_understand, what_next } = req.body;
   const last_evaluated_on = req.body.last_evaluated_on || new Date().toISOString();
-  
+
   if (!child_id || !topic_id || !level) {
     res.status(400).json({ error: "Child ID, topic ID, and level are required" });
     return;
@@ -1715,19 +1741,19 @@ app.post("/api/learning-levels", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid child_id" });
       return;
     }
-    
+
     const topicExists = await db.get("SELECT id FROM topics WHERE id = ?", topic_id);
     if (!topicExists) {
       res.status(400).json({ error: "Invalid topic_id" });
       return;
     }
-    
+
     // Validate the level
     if (!['Weak', 'Average', 'Strong'].includes(level)) {
       res.status(400).json({ error: "Level must be one of: 'Weak', 'Average', 'Strong'" });
       return;
     }
-    
+
     // Check if already exists
     const existingLevel = await db.get("SELECT id FROM learning_levels WHERE child_id = ? AND topic_id = ?", [child_id, topic_id]);
     if (existingLevel) {
@@ -1736,7 +1762,7 @@ app.post("/api/learning-levels", async (req: Request, res: Response) => {
     }
 
     const result = await db.run(
-      "INSERT INTO learning_levels (child_id, topic_id, level, do_not_understand, what_next, last_evaluated_on) VALUES (?, ?, ?, ?, ?, ?)", 
+      "INSERT INTO learning_levels (child_id, topic_id, level, do_not_understand, what_next, last_evaluated_on) VALUES (?, ?, ?, ?, ?, ?)",
       [child_id, topic_id, level, do_not_understand, what_next, last_evaluated_on]
     );
     const id = result.lastID;
@@ -1765,13 +1791,13 @@ app.put("/api/learning-levels/:id", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid child_id" });
       return;
     }
-    
+
     const topicExists = await db.get("SELECT id FROM topics WHERE id = ?", topic_id);
     if (!topicExists) {
       res.status(400).json({ error: "Invalid topic_id" });
       return;
     }
-    
+
     // Validate the level
     if (!['Weak', 'Average', 'Strong'].includes(level)) {
       res.status(400).json({ error: "Level must be one of: 'Weak', 'Average', 'Strong'" });
@@ -1779,7 +1805,7 @@ app.put("/api/learning-levels/:id", async (req: Request, res: Response) => {
     }
 
     await db.run(
-      "UPDATE learning_levels SET child_id = ?, topic_id = ?, level = ?, do_not_understand = ?, what_next = ?, last_evaluated_on = ? WHERE id = ?", 
+      "UPDATE learning_levels SET child_id = ?, topic_id = ?, level = ?, do_not_understand = ?, what_next = ?, last_evaluated_on = ? WHERE id = ?",
       [child_id, topic_id, level, do_not_understand, what_next, last_evaluated_on, id]
     );
     const learningLevel = await db.get("SELECT * FROM learning_levels WHERE id = ?", id);
@@ -1814,7 +1840,7 @@ app.get("/api/children/:id/subjects", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Child not found" });
       return;
     }
-    
+
     const subjects = await db.all(`
       SELECT s.* FROM subjects s
       JOIN child_subjects cs ON s.id = cs.subject_id
@@ -1830,7 +1856,7 @@ app.get("/api/children/:id/subjects", async (req: Request, res: Response) => {
 app.post("/api/children/:id/subjects", async (req: Request, res: Response) => {
   const { subject_id } = req.body;
   const child_id = req.params.id;
-  
+
   if (!subject_id) {
     res.status(400).json({ error: "Subject ID is required" });
     return;
@@ -1843,20 +1869,20 @@ app.post("/api/children/:id/subjects", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Child not found" });
       return;
     }
-    
+
     const subjectExists = await db.get("SELECT id FROM subjects WHERE id = ?", subject_id);
     if (!subjectExists) {
       res.status(404).json({ error: "Subject not found" });
       return;
     }
-    
+
     // Check if already exists
     const existingEnrollment = await db.get("SELECT * FROM child_subjects WHERE child_id = ? AND subject_id = ?", [child_id, subject_id]);
     if (existingEnrollment) {
       res.status(400).json({ error: "Child is already enrolled in this subject" });
       return;
     }
-    
+
     await db.run("INSERT INTO child_subjects (child_id, subject_id) VALUES (?, ?)", [child_id, subject_id]);
     res.status(201).json({ child_id, subject_id });
   } catch (error) {
@@ -1871,12 +1897,12 @@ app.delete("/api/children/:id/subjects/:subjectId", async (req: Request, res: Re
 
   try {
     const result = await db.run("DELETE FROM child_subjects WHERE child_id = ? AND subject_id = ?", [child_id, subject_id]);
-    
+
     if (result.changes === 0) {
       res.status(404).json({ error: "Child is not enrolled in this subject" });
       return;
     }
-    
+
     res.status(204).send();
   } catch (error) {
     console.error("Error removing child from subject:", error);
@@ -1892,7 +1918,7 @@ app.get("/api/teachers/:id/subjects", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Teacher not found" });
       return;
     }
-    
+
     const subjects = await db.all(`
       SELECT s.* FROM subjects s
       JOIN teacher_subjects ts ON s.id = ts.subject_id
@@ -1908,7 +1934,7 @@ app.get("/api/teachers/:id/subjects", async (req: Request, res: Response) => {
 app.post("/api/teachers/:id/subjects", async (req: Request, res: Response) => {
   const { subject_id } = req.body;
   const teacher_id = req.params.id;
-  
+
   if (!subject_id) {
     res.status(400).json({ error: "Subject ID is required" });
     return;
@@ -1921,20 +1947,20 @@ app.post("/api/teachers/:id/subjects", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Teacher not found" });
       return;
     }
-    
+
     const subjectExists = await db.get("SELECT id FROM subjects WHERE id = ?", subject_id);
     if (!subjectExists) {
       res.status(404).json({ error: "Subject not found" });
       return;
     }
-    
+
     // Check if already exists
     const existingAssignment = await db.get("SELECT * FROM teacher_subjects WHERE teacher_id = ? AND subject_id = ?", [teacher_id, subject_id]);
     if (existingAssignment) {
       res.status(400).json({ error: "Teacher is already assigned to this subject" });
       return;
     }
-    
+
     await db.run("INSERT INTO teacher_subjects (teacher_id, subject_id) VALUES (?, ?)", [teacher_id, subject_id]);
     res.status(201).json({ teacher_id, subject_id });
   } catch (error) {
@@ -1949,12 +1975,12 @@ app.delete("/api/teachers/:id/subjects/:subjectId", async (req: Request, res: Re
 
   try {
     const result = await db.run("DELETE FROM teacher_subjects WHERE teacher_id = ? AND subject_id = ?", [teacher_id, subject_id]);
-    
+
     if (result.changes === 0) {
       res.status(404).json({ error: "Teacher is not assigned to this subject" });
       return;
     }
-    
+
     res.status(204).send();
   } catch (error) {
     console.error("Error removing teacher from subject:", error);

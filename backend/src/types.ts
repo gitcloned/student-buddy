@@ -60,7 +60,12 @@ export interface LessonPlan {
 export interface LessonSection {
     id?: number;
     lesson_plan_id: number;
-    type: 'I Do' | 'We Do' | 'You Do';
+    type: 'Introduction' |
+    'I Do' |
+    'We Do' |
+    'You Do' |
+    'Assessment' |
+    'Homework';
     teaching_pedagogy: string;
 }
 

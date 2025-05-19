@@ -104,16 +104,17 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS lesson_sections (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       lesson_plan_id INTEGER,
-      type TEXT CHECK (type IN ('I Do', 'We Do', 'You Do')),
+      type TEXT CHECK (type IN ('Introduction', 'I Do', 'We Do', 'You Do', 'Assessment', 'Homework')),
       teaching_pedagogy TEXT NOT NULL,
       FOREIGN KEY (lesson_plan_id) REFERENCES lesson_plans(id)
     );
 
     CREATE TABLE IF NOT EXISTS resources (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
       type TEXT CHECK (type IN ('Concept Video', 'Question', 'Quiz', 'Practice Test')),
       url TEXT NOT NULL,
-      metadata TEXT
+      description TEXT
     );
 
     CREATE TABLE IF NOT EXISTS section_resources (

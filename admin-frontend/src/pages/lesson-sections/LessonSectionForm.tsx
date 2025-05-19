@@ -11,14 +11,14 @@ const LessonSectionForm: React.FC = () => {
   const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(null);
   const [formValues, setFormValues] = useState<{ 
     lesson_plan_id: number;
-    title: string; 
-    content: string; 
+    type: string; 
+    teaching_pedagogy: string; 
     duration_minutes: number | string;
     order_index: number | string;
   }>({ 
     lesson_plan_id: 0,
-    title: '', 
-    content: '',
+    type: '', 
+    teaching_pedagogy: '',
     duration_minutes: '',
     order_index: ''
   });
@@ -26,11 +26,11 @@ const LessonSectionForm: React.FC = () => {
   // Define section types
   const sectionTypes = [
     'Introduction',
-    'I Do (Teacher Demonstration)',
-    'We Do (Guided Practice)',
-    'You Do (Independent Practice)',
+    'I Do',
+    'We Do',
+    'You Do',
     'Assessment',
-    'Conclusion'
+    'Homework'
   ];
 
   useEffect(() => {
@@ -51,8 +51,8 @@ const LessonSectionForm: React.FC = () => {
           const section = await lessonSectionsApi.getById(parseInt(sectionId));
           setFormValues({ 
             lesson_plan_id: planIdNumber,
-            title: section.title,
-            content: section.content,
+            type: section.type,
+            teaching_pedagogy: section.teaching_pedagogy || '',
             duration_minutes: section.duration_minutes,
             order_index: section.order_index || ''
           });
@@ -89,8 +89,8 @@ const LessonSectionForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formValues.title.trim()) {
-      setError('Section title is required.');
+    if (!formValues.type.trim()) {
+      setError('Section type is required.');
       return;
     }
 
@@ -110,8 +110,8 @@ const LessonSectionForm: React.FC = () => {
       
       const sectionData = {
         lesson_plan_id: formValues.lesson_plan_id,
-        title: formValues.title,
-        content: formValues.content,
+        type: formValues.type,
+        teaching_pedagogy: formValues.teaching_pedagogy,
         duration_minutes: Number(formValues.duration_minutes),
         order_index: Number(formValues.order_index)
       };
@@ -169,20 +169,20 @@ const LessonSectionForm: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-6">
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="title">
-            Section Title
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="type">
+            Section Type
           </label>
           <input
             type="text"
-            id="title"
-            name="title"
-            value={formValues.title}
+            id="type"
+            name="type"
+            value={formValues.type}
             onChange={handleChange}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            placeholder="Enter section title"
-            list="section-title-suggestions"
+            placeholder="Enter section type"
+            list="section-type-suggestions"
           />
-          <datalist id="section-title-suggestions">
+          <datalist id="section-type-suggestions">
             {sectionTypes.map((type) => (
               <option key={type} value={type} />
             ))}
@@ -227,9 +227,9 @@ const LessonSectionForm: React.FC = () => {
             Content/Instructions
           </label>
           <textarea
-            id="content"
-            name="content"
-            value={formValues.content}
+            id="teaching_pedagogy"
+            name="teaching_pedagogy"
+            value={formValues.teaching_pedagogy}
             onChange={handleChange}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             placeholder="Enter section content and instructions"

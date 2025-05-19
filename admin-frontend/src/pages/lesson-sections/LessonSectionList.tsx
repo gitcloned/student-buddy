@@ -123,13 +123,13 @@ const LessonSectionList: React.FC = () => {
                   <span className="bg-gray-200 text-gray-700 rounded-full h-6 w-6 flex items-center justify-center mr-2">
                     {section.order_index || index + 1}
                   </span>
-                  <h4 className="font-medium">{section.title}</h4>
+                  <h4 className="font-medium">{section.type}</h4>
                 </div>
                 <div className="text-sm text-gray-500">{section.duration_minutes} minutes</div>
               </div>
               <div className="p-4">
                 <div className="mb-3">
-                  <p className="text-sm text-gray-700 whitespace-pre-line">{section.content}</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-line">{section.teaching_pedagogy}</p>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Link

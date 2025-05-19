@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { lessonPlansApi, topicsApi, teachersApi, learningLevelsApi, LessonPlan, Topic, Teacher, LearningLevel } from '../../services/api';
+import { lessonPlansApi, topicsApi, teachersApi, LessonPlan, Topic, Teacher } from '../../services/api';
 
 const LessonPlanForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -10,7 +10,13 @@ const LessonPlanForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [learningLevels, setLearningLevels] = useState<LearningLevel[]>([]);
+  
+  // Define learning levels for dropdown
+  const learningLevels = [
+    { value: 'Weak', label: 'Weak' },
+    { value: 'Average', label: 'Average' },
+    { value: 'Strong', label: 'Strong' }
+  ];
   const [formValues, setFormValues] = useState<{ 
     title: string; 
     topic_id: number | string; 
@@ -31,15 +37,13 @@ const LessonPlanForm: React.FC = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [topicsData, teachersData, learningLevelsData] = await Promise.all([
+        const [topicsData, teachersData] = await Promise.all([
           topicsApi.getAll(),
-          teachersApi.getAll(),
-          learningLevelsApi.getAll()
+          teachersApi.getAll()
         ]);
         
         setTopics(topicsData);
         setTeachers(teachersData);
-        setLearningLevels(learningLevelsData);
 
         if (id && id !== 'new') {
           const lessonPlan = await lessonPlansApi.getById(parseInt(id));
@@ -215,8 +219,8 @@ const LessonPlanForm: React.FC = () => {
           >
             <option value="">Select a learning level</option>
             {learningLevels.map((level) => (
-              <option key={level.id} value={level.id}>
-                Level {level.level} - {level.notes.substring(0, 30)}{level.notes.length > 30 ? '...' : ''}
+              <option key={level.value} value={level.value}>
+                {level.label}
               </option>
             ))}
           </select>
