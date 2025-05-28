@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { learningLevelsApi, childrenApi, topicsApi, LearningLevel, Child, Topic } from '../../services/api';
+import { learningLevelsApi, childrenApi, topicsApi, Child, Topic } from '../../services/api';
 
 const LearningLevelForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
