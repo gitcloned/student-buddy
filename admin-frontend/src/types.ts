@@ -88,12 +88,13 @@ export interface SectionResource {
 export interface LearningLevel {
     id?: number;
     child_id: number;
-    topic_id: number;
-    level: string; // Changed to number to match backend
-    notes: string; // Added to match backend
+    learning_indicator_id: number;
+    level: string;
+    state: 'assess' | 'teach' | 'taught' | null;
+    notes?: string;
     do_not_understand?: string;
     what_next?: string;
-    last_evaluated_on?: string; // Made optional
+    last_evaluated_on?: string;
 }
 
 export interface BookFeature {

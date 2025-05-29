@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { learningLevelsApi, childrenApi, topicsApi, Child, Topic } from '../../services/api';
+import { learningLevelsApi, childrenApi, learningIndicatorsApi, Child, LearningIndicator } from '../../services/api';
 
 const LearningLevelForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -9,17 +9,23 @@ const LearningLevelForm: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [children, setChildren] = useState<Child[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
+  const [learningIndicators, setLearningIndicators] = useState<LearningIndicator[]>([]);
   const [formValues, setFormValues] = useState<{ 
     child_id: number | string;
-    topic_id: number | string;
+    learning_indicator_id: number | string;
     level: string;
+    state: 'assess' | 'teach' | 'taught' | null;
     notes: string;
+    do_not_understand: string;
+    what_next: string;
   }>({ 
     child_id: '',
-    topic_id: '',
+    learning_indicator_id: '',
     level: '',
-    notes: ''
+    state: null,
+    notes: '',
+    do_not_understand: '',
+    what_next: ''
   });
 
   // Define levels for dropdown
@@ -28,26 +34,37 @@ const LearningLevelForm: React.FC = () => {
     { value: 'Average', label: 'Average' },
     { value: 'Strong', label: 'Strong' }
   ];
+  
+  // Define state options for dropdown
+  const stateOptions = [
+    { value: 'assess', label: 'Assess' },
+    { value: 'teach', label: 'Teach' },
+    { value: 'taught', label: 'Taught' },
+    { value: '', label: 'None' }
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [childrenData, topicsData] = await Promise.all([
+        const [childrenData, learningIndicatorsData] = await Promise.all([
           childrenApi.getAll(),
-          topicsApi.getAll()
+          learningIndicatorsApi.getAll()
         ]);
         
         setChildren(childrenData);
-        setTopics(topicsData);
+        setLearningIndicators(learningIndicatorsData);
 
         if (id && id !== 'new') {
           const learningLevel = await learningLevelsApi.getById(parseInt(id));
           setFormValues({ 
             child_id: learningLevel.child_id,
-            topic_id: learningLevel.topic_id,
+            learning_indicator_id: learningLevel.learning_indicator_id,
             level: learningLevel.level,
-            notes: learningLevel.notes || ''
+            state: learningLevel.state,
+            notes: learningLevel.notes || '',
+            do_not_understand: learningLevel.do_not_understand || '',
+            what_next: learningLevel.what_next || ''
           });
         }
         
@@ -65,7 +82,7 @@ const LearningLevelForm: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormValues({ ...formValues, [name]: value });
+    setFormValues({ ...formValues, [name]: value === '' && name === 'state' ? null : value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,8 +93,8 @@ const LearningLevelForm: React.FC = () => {
       return;
     }
 
-    if (!formValues.topic_id) {
-      setError('Topic is required.');
+    if (!formValues.learning_indicator_id) {
+      setError('Learning indicator is required.');
       return;
     }
 
@@ -92,9 +109,12 @@ const LearningLevelForm: React.FC = () => {
       
       const learningLevelData = {
         child_id: Number(formValues.child_id),
-        topic_id: Number(formValues.topic_id),
+        learning_indicator_id: Number(formValues.learning_indicator_id),
         level: formValues.level,
-        notes: formValues.notes
+        state: formValues.state,
+        notes: formValues.notes,
+        do_not_understand: formValues.do_not_understand,
+        what_next: formValues.what_next
       };
       
       if (id && id !== 'new') {
@@ -154,20 +174,20 @@ const LearningLevelForm: React.FC = () => {
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="topic_id">
-            Topic
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="learning_indicator_id">
+            Learning Indicator
           </label>
           <select
-            id="topic_id"
-            name="topic_id"
-            value={formValues.topic_id}
+            id="learning_indicator_id"
+            name="learning_indicator_id"
+            value={formValues.learning_indicator_id}
             onChange={handleChange}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           >
-            <option value="">Select a topic</option>
-            {topics.map((topic) => (
-              <option key={topic.id} value={topic.id}>
-                {topic.name}
+            <option value="">Select a learning indicator</option>
+            {learningIndicators.map((indicator) => (
+              <option key={indicator.id} value={indicator.id}>
+                {indicator.title}
               </option>
             ))}
           </select>
@@ -194,6 +214,54 @@ const LearningLevelForm: React.FC = () => {
         </div>
 
         <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="state">
+            State
+          </label>
+          <select
+            id="state"
+            name="state"
+            value={formValues.state || ''}
+            onChange={handleChange}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          >
+            <option value="">None</option>
+            {stateOptions.filter(option => option.value !== '').map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="do_not_understand">
+            Do Not Understand
+          </label>
+          <textarea
+            id="do_not_understand"
+            name="do_not_understand"
+            value={formValues.do_not_understand}
+            onChange={handleChange}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            rows={3}
+          ></textarea>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="what_next">
+            What Next
+          </label>
+          <textarea
+            id="what_next"
+            name="what_next"
+            value={formValues.what_next}
+            onChange={handleChange}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            rows={3}
+          ></textarea>
+        </div>
+
+        <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="notes">
             Notes
           </label>
@@ -203,9 +271,8 @@ const LearningLevelForm: React.FC = () => {
             value={formValues.notes}
             onChange={handleChange}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            placeholder="Enter notes about the child's learning level"
             rows={4}
-          />
+          ></textarea>
         </div>
 
         <div className="flex items-center justify-between mt-6">

@@ -573,6 +573,11 @@ export const learningLevelsApi = {
     return response.data;
   },
   
+  getByLearningIndicator: async (indicatorId: number): Promise<LearningLevel[]> => {
+    const response = await apiClient.get(`/learning-indicators/${indicatorId}/learning-levels`);
+    return response.data;
+  },
+  
   getByChild: async (childId: number): Promise<LearningLevel[]> => {
     const response = await apiClient.get(`/children/${childId}/learning-levels`);
     return response.data;
@@ -580,9 +585,12 @@ export const learningLevelsApi = {
   
   create: async (level: { 
     child_id: number, 
-    topic_id: number, 
-    level: string, 
-    notes: string
+    learning_indicator_id: number, 
+    level: string,
+    state: 'assess' | 'teach' | 'taught' | null,
+    notes: string,
+    do_not_understand: string,
+    what_next: string
   }): Promise<LearningLevel> => {
     const response = await apiClient.post('/learning-levels', level);
     return response.data;
@@ -590,9 +598,12 @@ export const learningLevelsApi = {
   
   update: async (id: number, level: { 
     child_id: number, 
-    topic_id: number, 
-    level: string, 
-    notes: string
+    learning_indicator_id: number, 
+    level: string,
+    state: 'assess' | 'teach' | 'taught' | null,
+    notes: string,
+    do_not_understand: string,
+    what_next: string
   }): Promise<LearningLevel> => {
     const response = await apiClient.put(`/learning-levels/${id}`, level);
     return response.data;

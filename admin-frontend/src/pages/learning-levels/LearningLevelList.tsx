@@ -1,25 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { learningLevelsApi, LearningLevel, childrenApi, Child, topicsApi, Topic } from '../../services/api';
+import { learningLevelsApi, LearningLevel, childrenApi, Child, learningIndicatorsApi, LearningIndicator } from '../../services/api';
 
 const LearningLevelList: React.FC = () => {
   const [learningLevels, setLearningLevels] = useState<LearningLevel[]>([]);
   const [children, setChildren] = useState<Child[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
+  const [learningIndicators, setLearningIndicators] = useState<LearningIndicator[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [learningLevelsData, childrenData, topicsData] = await Promise.all([
+      const [learningLevelsData, childrenData, learningIndicatorsData] = await Promise.all([
         learningLevelsApi.getAll(),
         childrenApi.getAll(),
-        topicsApi.getAll()
+        learningIndicatorsApi.getAll()
       ]);
       setLearningLevels(learningLevelsData);
       setChildren(childrenData);
-      setTopics(topicsData);
+      setLearningIndicators(learningIndicatorsData);
       setError(null);
     } catch (err) {
       setError('Failed to load learning levels. Please try again.');
@@ -52,24 +52,38 @@ const LearningLevelList: React.FC = () => {
     return child ? child.name : 'Unknown Child';
   };
 
-  const getTopicName = (topicId: number): string => {
-    const topic = topics.find(t => t.id === topicId);
-    return topic ? topic.name : 'Unknown Topic';
+  const getLearningIndicatorTitle = (indicatorId: number): string => {
+    const indicator = learningIndicators.find(i => i.id === indicatorId);
+    return indicator ? indicator.title : 'Unknown Indicator';
   };
 
-  const getLevelBadge = (level: number) => {
+  const getLevelBadge = (level: string) => {
     const colorClasses = {
-      1: 'bg-red-100 text-red-800',
-      2: 'bg-yellow-100 text-yellow-800',
-      3: 'bg-green-100 text-green-800',
-      4: 'bg-blue-100 text-blue-800',
-      5: 'bg-purple-100 text-purple-800'
+      'Weak': 'bg-red-100 text-red-800',
+      'Average': 'bg-yellow-100 text-yellow-800',
+      'Strong': 'bg-green-100 text-green-800'
     };
     // @ts-ignore
     const colorClass = colorClasses[level] || 'bg-gray-100 text-gray-800';
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${colorClass}`}>
-        Level {level}
+        {level}
+      </span>
+    );
+  };
+  
+  const getStateBadge = (state: 'assess' | 'teach' | 'taught' | null) => {
+    if (!state) return null;
+    
+    const colorClasses = {
+      'assess': 'bg-blue-100 text-blue-800',
+      'teach': 'bg-yellow-100 text-yellow-800',
+      'taught': 'bg-green-100 text-green-800'
+    };
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colorClasses[state]}`}>
+        {state.charAt(0).toUpperCase() + state.slice(1)}
       </span>
     );
   };
@@ -116,10 +130,13 @@ const LearningLevelList: React.FC = () => {
                   Child
                 </th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Topic
+                  Learning Indicator
                 </th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Level
+                </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  State
                 </th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Notes
@@ -134,8 +151,9 @@ const LearningLevelList: React.FC = () => {
                 <tr key={level.id} className="hover:bg-gray-50">
                   <td className="py-4 px-4 whitespace-nowrap">{level.id}</td>
                   <td className="py-4 px-4 whitespace-nowrap">{getChildName(level.child_id)}</td>
-                  <td className="py-4 px-4 whitespace-nowrap">{getTopicName(level.topic_id)}</td>
+                  <td className="py-4 px-4 whitespace-nowrap">{getLearningIndicatorTitle(level.learning_indicator_id)}</td>
                   <td className="py-4 px-4 whitespace-nowrap">{getLevelBadge(level.level)}</td>
+                  <td className="py-4 px-4 whitespace-nowrap">{getStateBadge(level.state)}</td>
                   <td className="py-4 px-4">
                     <div className="line-clamp-2">
                       {level.notes ? (level.notes.length > 50 ? `${level.notes.substring(0, 50)}...` : level.notes) : ''}

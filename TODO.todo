@@ -41,18 +41,39 @@ Chalkboard:
     ☐ Increase font a bit and slow down writing a bit
 
 Teacher:
-    ☐ Separate teacherPersona as teachers and teacherStyle
+    ☐ Separate teacherPersona as teachers and teacherStyle @started(25-05-29 11:07)
         ✔ Add persona prompts, https://chat.deepseek.com/a/chat/s/74270562-92c7-4316-96ca-a91d73360fd7 and pick from langfuse @started(25-04-28 00:04) @done(25-04-28 00:04) @lasted(19s)
         ☐ Pick voice as per the teacher persona
         ☐ Pick avatar as per the teacher persona
         ✔ If text is also in hindi, then it works better @started(25-04-28 00:04) @done(25-04-28 00:04) @lasted(15s)
 
-Mandgaon pilot:
-    ☐ Use topic as learning outcome
-    ☐ Introduce an entity as learning indicator
-        ☐ Learning indicator should have asessing questions
+Mangaon pilot:
+    ✔ Use topic as learning outcome @started(25-05-29 11:07) @done(25-05-29 11:07) @lasted(13s)
+    ✔ Introduce an entity as learning indicator @started(25-05-29 10:59) @done(25-05-29 11:05) @lasted(6m21s)
+        ✔ Learning indicator should have asessing questions @started(25-05-29 11:05) @done(25-05-29 11:05) @lasted(23s)
     ☐ Introduce an entity as Homework. Each LO can have homework. Homework is nothing but series of questions
-    ☐ Learning level should also be against the learning indicator, and should have state as well as: null, assessing, teaching, taught
+    ✔ Learning level should also be against the learning indicator, and should have state as well as: null, assessing, teaching, taught @started(25-05-29 11:16) @done(25-05-29 11:52) @lasted(36m15s)
+    ☐ In LearningIndicator also add an attribute as CommonMisconception, which is a common mistake children do as a textarea
     ☐ Upload content for first 2 pages
+    ☐ APIs
+        ☐ API to change the stage of learning
+        ☐ API to fetch the stage of learning
     ☐ Modify the prompt skeleton and prompt picking
         ☐ Tool 
+    ☐ Script should be written in Hindi
+        ☐ To see if we should skip writing chat if something is written as part of chalkboard
+    ☐ Need to have support of dev/prod databases
+    ☐ PROD deployment as a web service [Thejas]
+    ☐ Student app integration [Prasanth]
+        ☐ Fetch student details in API endpoint
+            ☐ Use said as id in child table, and read info
+    ☐ Integrate langfuse
+    ☐ Chalkboard improvements
+        ☐ Hanlde highlight on chalkboard
+        ☐ Reduce the speed of writing
+        ☐ Chalkboard moves up when stage changes with # link to jump
+
+Mangaon pilot (P1):
+    ☐ Clean dashboard left menu
+    ☐ Integrate MS Clarity
+    

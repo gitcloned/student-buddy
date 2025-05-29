@@ -123,13 +123,14 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS learning_levels (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       child_id INTEGER,
-      topic_id INTEGER,
+      learning_indicator_id INTEGER,
       level TEXT CHECK (level IN ('Weak', 'Average', 'Strong')),
+      state TEXT CHECK (state IN ('assess', 'teach', 'taught', NULL)),
       do_not_understand TEXT,
       what_next TEXT,
       last_evaluated_on TEXT,
       FOREIGN KEY (child_id) REFERENCES children(id),
-      FOREIGN KEY (topic_id) REFERENCES topics(id)
+      FOREIGN KEY (learning_indicator_id) REFERENCES learning_indicators(id)
     );
 
     CREATE TABLE IF NOT EXISTS learning_indicators (
@@ -1708,6 +1709,23 @@ app.get("/api/children/:id/learning-levels", async (req: Request, res: Response)
   }
 });
 
+app.get("/api/learning-indicators/:id/learning-levels", async (req: Request, res: Response) => {
+  try {
+    const learningIndicator = await db.get("SELECT * FROM learning_indicators WHERE id = ?", req.params.id);
+    if (!learningIndicator) {
+      res.status(404).json({ error: "Learning indicator not found" });
+      return;
+    }
+
+    const learningLevels = await db.all("SELECT * FROM learning_levels WHERE learning_indicator_id = ?", req.params.id);
+    res.json(learningLevels);
+  } catch (error) {
+    console.error("Error fetching learning indicator's learning levels:", error);
+    res.status(500).json({ error: "Failed to fetch learning indicator's learning levels" });
+  }
+});
+
+// For backward compatibility, also provide learning levels by topic through learning indicators
 app.get("/api/topics/:id/learning-levels", async (req: Request, res: Response) => {
   try {
     const topic = await db.get("SELECT * FROM topics WHERE id = ?", req.params.id);
@@ -1716,7 +1734,16 @@ app.get("/api/topics/:id/learning-levels", async (req: Request, res: Response) =
       return;
     }
 
-    const learningLevels = await db.all("SELECT * FROM learning_levels WHERE topic_id = ?", req.params.id);
+    // Get learning indicators for this topic
+    const learningIndicators = await db.all("SELECT * FROM learning_indicators WHERE topic_id = ?", req.params.id);
+    
+    // Get learning levels for all these learning indicators
+    const learningLevels = [];
+    for (const indicator of learningIndicators) {
+      const levels = await db.all("SELECT * FROM learning_levels WHERE learning_indicator_id = ?", indicator.id);
+      learningLevels.push(...levels);
+    }
+    
     res.json(learningLevels);
   } catch (error) {
     console.error("Error fetching topic's learning levels:", error);
@@ -1724,13 +1751,13 @@ app.get("/api/topics/:id/learning-levels", async (req: Request, res: Response) =
   }
 });
 
-app.get("/api/children/:childId/topics/:topicId/learning-level", async (req: Request, res: Response) => {
-  const { childId, topicId } = req.params;
+app.get("/api/children/:childId/learning-indicators/:indicatorId/learning-level", async (req: Request, res: Response) => {
+  const { childId, indicatorId } = req.params;
 
   try {
-    const learningLevel = await db.get("SELECT * FROM learning_levels WHERE child_id = ? AND topic_id = ?", [childId, topicId]);
+    const learningLevel = await db.get("SELECT * FROM learning_levels WHERE child_id = ? AND learning_indicator_id = ?", [childId, indicatorId]);
     if (!learningLevel) {
-      res.status(404).json({ error: "Learning level not found for this child and topic" });
+      res.status(404).json({ error: "Learning level not found for this child and learning indicator" });
       return;
     }
     res.json(learningLevel);
@@ -1740,26 +1767,60 @@ app.get("/api/children/:childId/topics/:topicId/learning-level", async (req: Req
   }
 });
 
+// For backward compatibility
+app.get("/api/children/:childId/topics/:topicId/learning-level", async (req: Request, res: Response) => {
+  const { childId, topicId } = req.params;
+
+  try {
+    // Find learning indicators for this topic
+    const learningIndicators = await db.all("SELECT * FROM learning_indicators WHERE topic_id = ?", topicId);
+    if (learningIndicators.length === 0) {
+      res.status(404).json({ error: "No learning indicators found for this topic" });
+      return;
+    }
+    
+    // Find learning levels for this child and any of these learning indicators
+    const learningLevels = [];
+    for (const indicator of learningIndicators) {
+      const level = await db.get("SELECT * FROM learning_levels WHERE child_id = ? AND learning_indicator_id = ?", [childId, indicator.id]);
+      if (level) {
+        learningLevels.push(level);
+      }
+    }
+    
+    if (learningLevels.length === 0) {
+      res.status(404).json({ error: "Learning level not found for this child and topic" });
+      return;
+    }
+    
+    // Return the first one for backward compatibility
+    res.json(learningLevels[0]);
+  } catch (error) {
+    console.error("Error fetching specific learning level:", error);
+    res.status(500).json({ error: "Failed to fetch specific learning level" });
+  }
+});
+
 app.post("/api/learning-levels", async (req: Request, res: Response) => {
-  const { child_id, topic_id, level, do_not_understand, what_next } = req.body;
+  const { child_id, learning_indicator_id, level, state, do_not_understand, what_next } = req.body;
   const last_evaluated_on = req.body.last_evaluated_on || new Date().toISOString();
 
-  if (!child_id || !topic_id || !level) {
-    res.status(400).json({ error: "Child ID, topic ID, and level are required" });
+  if (!child_id || !learning_indicator_id || !level) {
+    res.status(400).json({ error: "Child ID, learning indicator ID, and level are required" });
     return;
   }
 
   try {
-    // Verify that the child_id and topic_id exist
+    // Verify that the child_id and learning_indicator_id exist
     const childExists = await db.get("SELECT id FROM children WHERE id = ?", child_id);
     if (!childExists) {
       res.status(400).json({ error: "Invalid child_id" });
       return;
     }
 
-    const topicExists = await db.get("SELECT id FROM topics WHERE id = ?", topic_id);
-    if (!topicExists) {
-      res.status(400).json({ error: "Invalid topic_id" });
+    const indicatorExists = await db.get("SELECT id FROM learning_indicators WHERE id = ?", learning_indicator_id);
+    if (!indicatorExists) {
+      res.status(400).json({ error: "Invalid learning_indicator_id" });
       return;
     }
 
@@ -1768,17 +1829,23 @@ app.post("/api/learning-levels", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Level must be one of: 'Weak', 'Average', 'Strong'" });
       return;
     }
+    
+    // Validate the state if provided
+    if (state && !['assess', 'teach', 'taught', null].includes(state)) {
+      res.status(400).json({ error: "State must be one of: 'assess', 'teach', 'taught', or null" });
+      return;
+    }
 
     // Check if already exists
-    const existingLevel = await db.get("SELECT id FROM learning_levels WHERE child_id = ? AND topic_id = ?", [child_id, topic_id]);
+    const existingLevel = await db.get("SELECT id FROM learning_levels WHERE child_id = ? AND learning_indicator_id = ?", [child_id, learning_indicator_id]);
     if (existingLevel) {
-      res.status(400).json({ error: "A learning level already exists for this child and topic. Use PUT to update it." });
+      res.status(400).json({ error: "A learning level already exists for this child and learning indicator. Use PUT to update it." });
       return;
     }
 
     const result = await db.run(
-      "INSERT INTO learning_levels (child_id, topic_id, level, do_not_understand, what_next, last_evaluated_on) VALUES (?, ?, ?, ?, ?, ?)",
-      [child_id, topic_id, level, do_not_understand, what_next, last_evaluated_on]
+      "INSERT INTO learning_levels (child_id, learning_indicator_id, level, state, do_not_understand, what_next, last_evaluated_on) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [child_id, learning_indicator_id, level, state, do_not_understand, what_next, last_evaluated_on]
     );
     const id = result.lastID;
     const learningLevel = await db.get("SELECT * FROM learning_levels WHERE id = ?", id);
@@ -1790,26 +1857,26 @@ app.post("/api/learning-levels", async (req: Request, res: Response) => {
 });
 
 app.put("/api/learning-levels/:id", async (req: Request, res: Response) => {
-  const { child_id, topic_id, level, do_not_understand, what_next } = req.body;
+  const { child_id, learning_indicator_id, level, state, do_not_understand, what_next } = req.body;
   const last_evaluated_on = req.body.last_evaluated_on || new Date().toISOString();
   const id = req.params.id;
 
-  if (!child_id || !topic_id || !level) {
-    res.status(400).json({ error: "Child ID, topic ID, and level are required" });
+  if (!child_id || !learning_indicator_id || !level) {
+    res.status(400).json({ error: "Child ID, learning indicator ID, and level are required" });
     return;
   }
 
   try {
-    // Verify that the child_id and topic_id exist
+    // Verify that the child_id and learning_indicator_id exist
     const childExists = await db.get("SELECT id FROM children WHERE id = ?", child_id);
     if (!childExists) {
       res.status(400).json({ error: "Invalid child_id" });
       return;
     }
 
-    const topicExists = await db.get("SELECT id FROM topics WHERE id = ?", topic_id);
-    if (!topicExists) {
-      res.status(400).json({ error: "Invalid topic_id" });
+    const indicatorExists = await db.get("SELECT id FROM learning_indicators WHERE id = ?", learning_indicator_id);
+    if (!indicatorExists) {
+      res.status(400).json({ error: "Invalid learning_indicator_id" });
       return;
     }
 
@@ -1818,10 +1885,16 @@ app.put("/api/learning-levels/:id", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Level must be one of: 'Weak', 'Average', 'Strong'" });
       return;
     }
+    
+    // Validate the state if provided
+    if (state && !['assess', 'teach', 'taught', null].includes(state)) {
+      res.status(400).json({ error: "State must be one of: 'assess', 'teach', 'taught', or null" });
+      return;
+    }
 
     await db.run(
-      "UPDATE learning_levels SET child_id = ?, topic_id = ?, level = ?, do_not_understand = ?, what_next = ?, last_evaluated_on = ? WHERE id = ?",
-      [child_id, topic_id, level, do_not_understand, what_next, last_evaluated_on, id]
+      "UPDATE learning_levels SET child_id = ?, learning_indicator_id = ?, level = ?, state = ?, do_not_understand = ?, what_next = ?, last_evaluated_on = ? WHERE id = ?",
+      [child_id, learning_indicator_id, level, state, do_not_understand, what_next, last_evaluated_on, id]
     );
     const learningLevel = await db.get("SELECT * FROM learning_levels WHERE id = ?", id);
     if (!learningLevel) {
