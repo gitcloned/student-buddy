@@ -53,7 +53,7 @@ Mangaon pilot:
         ✔ Learning indicator should have asessing questions @started(25-05-29 11:05) @done(25-05-29 11:05) @lasted(23s)
     ☐ Introduce an entity as Homework. Each LO can have homework. Homework is nothing but series of questions
     ✔ Learning level should also be against the learning indicator, and should have state as well as: null, assessing, teaching, taught @started(25-05-29 11:16) @done(25-05-29 11:52) @lasted(36m15s)
-    ☐ In LearningIndicator also add an attribute as CommonMisconception, which is a common mistake children do as a textarea
+    ✔ In LearningIndicator also add an attribute as CommonMisconception, which is a common mistake children do as a textarea @started(25-05-29 12:10) @done(25-05-29 12:14) @lasted(4m8s)
     ☐ Upload content for first 2 pages
     ☐ APIs
         ☐ API to change the stage of learning

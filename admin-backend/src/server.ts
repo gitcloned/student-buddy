@@ -137,6 +137,7 @@ async function initializeDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       topic_id INTEGER,
+      common_misconception TEXT,
       FOREIGN KEY (topic_id) REFERENCES topics(id)
     );
 
@@ -2104,7 +2105,7 @@ app.get("/api/learning-indicators/:id", async (req: Request, res: Response) => {
 
 // POST create a new learning indicator
 app.post("/api/learning-indicators", async (req: Request, res: Response) => {
-  const { title, topic_id } = req.body;
+  const { title, topic_id, common_misconception } = req.body;
 
   if (!title || !topic_id) {
     res.status(400).json({ error: "Title and topic ID are required" });
@@ -2120,14 +2121,15 @@ app.post("/api/learning-indicators", async (req: Request, res: Response) => {
     }
 
     const result = await db.run(
-      "INSERT INTO learning_indicators (title, topic_id) VALUES (?, ?)",
-      [title, topic_id]
+      "INSERT INTO learning_indicators (title, topic_id, common_misconception) VALUES (?, ?, ?)",
+      [title, topic_id, common_misconception || null]
     );
 
     const newLearningIndicator = {
       id: result.lastID,
       title,
-      topic_id
+      topic_id,
+      common_misconception
     };
 
     res.status(201).json(newLearningIndicator);
@@ -2139,7 +2141,7 @@ app.post("/api/learning-indicators", async (req: Request, res: Response) => {
 
 // PUT update a learning indicator
 app.put("/api/learning-indicators/:id", async (req: Request, res: Response) => {
-  const { title, topic_id } = req.body;
+  const { title, topic_id, common_misconception } = req.body;
   const id = req.params.id;
 
   if (!title || !topic_id) {
@@ -2163,14 +2165,15 @@ app.put("/api/learning-indicators/:id", async (req: Request, res: Response) => {
     }
 
     await db.run(
-      "UPDATE learning_indicators SET title = ?, topic_id = ? WHERE id = ?",
-      [title, topic_id, id]
+      "UPDATE learning_indicators SET title = ?, topic_id = ?, common_misconception = ? WHERE id = ?",
+      [title, topic_id, common_misconception || null, id]
     );
 
     const updatedLearningIndicator = {
       id: Number(id),
       title,
-      topic_id
+      topic_id,
+      common_misconception
     };
 
     res.json(updatedLearningIndicator);

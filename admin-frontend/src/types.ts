@@ -109,6 +109,7 @@ export interface LearningIndicator {
     id?: number;
     title: string;
     topic_id: number;
+    common_misconception?: string;
 }
 
 export interface LearningIndicatorResource {

@@ -118,13 +118,14 @@ const LearningIndicatorList: React.FC = () => {
                 <th className="py-2 px-4 border-b">ID</th>
                 <th className="py-2 px-4 border-b">Title</th>
                 <th className="py-2 px-4 border-b">Topic</th>
+                <th className="py-2 px-4 border-b">Common Misconception</th>
                 <th className="py-2 px-4 border-b">Actions</th>
               </tr>
             </thead>
             <tbody>
               {learningIndicators.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-4">No learning indicators found</td>
+                  <td colSpan={5} className="text-center py-4">No learning indicators found</td>
                 </tr>
               ) : (
                 learningIndicators.map(indicator => (
@@ -132,6 +133,11 @@ const LearningIndicatorList: React.FC = () => {
                     <td className="py-2 px-4 border-b text-center">{indicator.id}</td>
                     <td className="py-2 px-4 border-b">{indicator.title}</td>
                     <td className="py-2 px-4 border-b">{getTopicName(indicator.topic_id)}</td>
+                    <td className="py-2 px-4 border-b">{indicator.common_misconception ? 
+                      (indicator.common_misconception.length > 50 ? 
+                        `${indicator.common_misconception.substring(0, 50)}...` : 
+                        indicator.common_misconception) : 
+                      '—'}</td>
                     <td className="py-2 px-4 border-b">
                       <div className="flex space-x-2">
                         <button

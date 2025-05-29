@@ -9,9 +9,10 @@ interface LearningIndicatorFormProps {
 const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing = false }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState<{ title: string; topic_id: number | string }>({
+  const [formData, setFormData] = useState<{ title: string; topic_id: number | string; common_misconception: string }>({
     title: '',
-    topic_id: ''
+    topic_id: '',
+    common_misconception: ''
   });
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -40,7 +41,8 @@ const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing
           const data = await learningIndicatorsApi.getById(Number(id));
           setFormData({
             title: data.title,
-            topic_id: data.topic_id
+            topic_id: data.topic_id,
+            common_misconception: data.common_misconception || ''
           });
         } catch (error) {
           console.error('Error fetching learning indicator:', error);
@@ -54,7 +56,7 @@ const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing
     fetchLearningIndicator();
   }, [isEditing, id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -79,14 +81,16 @@ const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing
       if (isEditing && id) {
         await learningIndicatorsApi.update(Number(id), {
           title: formData.title,
-          topic_id: formData.topic_id as number
+          topic_id: formData.topic_id as number,
+          common_misconception: formData.common_misconception
         });
         setSuccessMessage('Learning indicator updated successfully');
         setTimeout(() => navigate('/learning-indicators'), 1500);
       } else {
         await learningIndicatorsApi.create({
           title: formData.title,
-          topic_id: formData.topic_id as number
+          topic_id: formData.topic_id as number,
+          common_misconception: formData.common_misconception
         });
         setSuccessMessage('Learning indicator created successfully');
         setTimeout(() => navigate('/learning-indicators'), 1500);
@@ -136,7 +140,7 @@ const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing
           />
         </div>
         
-        <div className="mb-6">
+        <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="topic_id">
             Topic (Learning Outcome) <span className="text-red-500">*</span>
           </label>
@@ -153,6 +157,22 @@ const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing
               <option key={topic.id} value={topic.id}>{topic.name}</option>
             ))}
           </select>
+        </div>
+        
+        <div className="mb-6">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="common_misconception">
+            Common Misconception
+          </label>
+          <textarea
+            id="common_misconception"
+            name="common_misconception"
+            value={formData.common_misconception}
+            onChange={handleChange}
+            placeholder="Enter common mistakes children make related to this learning indicator"
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            rows={4}
+          />
+          <p className="text-sm text-gray-600 mt-1">Describe common mistakes or misconceptions that children typically have with this concept.</p>
         </div>
         
         <div className="flex items-center">

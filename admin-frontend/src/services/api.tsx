@@ -523,7 +523,8 @@ export const learningIndicatorsApi = {
   
   create: async (indicator: { 
     title: string, 
-    topic_id: number 
+    topic_id: number,
+    common_misconception?: string
   }): Promise<LearningIndicator> => {
     const response = await apiClient.post('/learning-indicators', indicator);
     return response.data;
@@ -531,7 +532,8 @@ export const learningIndicatorsApi = {
   
   update: async (id: number, indicator: { 
     title: string, 
-    topic_id: number 
+    topic_id: number,
+    common_misconception?: string
   }): Promise<LearningIndicator> => {
     const response = await apiClient.put(`/learning-indicators/${id}`, indicator);
     return response.data;
