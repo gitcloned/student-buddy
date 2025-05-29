@@ -53,6 +53,11 @@ import ResourceForm from './pages/resources/ResourceForm';
 import LearningLevelList from './pages/learning-levels/LearningLevelList';
 import LearningLevelForm from './pages/learning-levels/LearningLevelForm';
 
+// Learning Indicators
+import LearningIndicatorList from './pages/learning-indicators/LearningIndicatorList';
+import LearningIndicatorForm from './pages/learning-indicators/LearningIndicatorForm';
+import LearningIndicatorResources from './pages/learning-indicators/LearningIndicatorResources';
+
 // POCs
 import ChalkboardTypingEffect from './pages/pocs/ChalkboardTest';
 
@@ -125,6 +130,12 @@ const App: React.FC = () => {
           <Route path="/learning-levels" element={<LearningLevelList />} />
           <Route path="/learning-levels/new" element={<LearningLevelForm />} />
           <Route path="/learning-levels/:id" element={<LearningLevelForm />} />
+          
+          {/* Learning Indicators */}
+          <Route path="/learning-indicators" element={<LearningIndicatorList />} />
+          <Route path="/learning-indicators/create" element={<LearningIndicatorForm />} />
+          <Route path="/learning-indicators/edit/:id" element={<LearningIndicatorForm isEditing />} />
+          <Route path="/learning-indicators/:id/resources" element={<LearningIndicatorResources />} />
           
           {/* POCs */}
           <Route path="/tests/chalkboard" element={<ChalkboardTypingEffect />} />

@@ -2,14 +2,14 @@ import axios from 'axios';
 import { 
   TeacherPersona, Book, BookFeature, Grade, Teacher, Subject, Child, 
   Chapter, Topic, TopicPrerequisite, LessonPlan, LessonSection, 
-  Resource, SectionResource, LearningLevel 
+  Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource 
 } from '../types';
 
 // Re-export all the types for components to use
 export type { 
   TeacherPersona, Book, BookFeature, Grade, Teacher, Subject, Child, 
   Chapter, Topic, TopicPrerequisite, LessonPlan, LessonSection, 
-  Resource, SectionResource, LearningLevel 
+  Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource 
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
@@ -501,6 +501,58 @@ export const resourcesApi = {
   
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/resources/${id}`);
+  },
+};
+
+// Learning Indicators API
+export const learningIndicatorsApi = {
+  getAll: async (): Promise<LearningIndicator[]> => {
+    const response = await apiClient.get('/learning-indicators');
+    return response.data;
+  },
+  
+  getById: async (id: number): Promise<LearningIndicator> => {
+    const response = await apiClient.get(`/learning-indicators/${id}`);
+    return response.data;
+  },
+  
+  getByTopic: async (topicId: number): Promise<LearningIndicator[]> => {
+    const response = await apiClient.get(`/topics/${topicId}/learning-indicators`);
+    return response.data;
+  },
+  
+  create: async (indicator: { 
+    title: string, 
+    topic_id: number 
+  }): Promise<LearningIndicator> => {
+    const response = await apiClient.post('/learning-indicators', indicator);
+    return response.data;
+  },
+  
+  update: async (id: number, indicator: { 
+    title: string, 
+    topic_id: number 
+  }): Promise<LearningIndicator> => {
+    const response = await apiClient.put(`/learning-indicators/${id}`, indicator);
+    return response.data;
+  },
+  
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/learning-indicators/${id}`);
+  },
+  
+  getResources: async (id: number): Promise<Resource[]> => {
+    const response = await apiClient.get(`/learning-indicators/${id}/resources`);
+    return response.data;
+  },
+  
+  addResource: async (id: number, resource_id: number): Promise<LearningIndicatorResource> => {
+    const response = await apiClient.post(`/learning-indicators/${id}/resources`, { resource_id });
+    return response.data;
+  },
+  
+  removeResource: async (id: number, resource_id: number): Promise<void> => {
+    await apiClient.delete(`/learning-indicators/${id}/resources/${resource_id}`);
   },
 };
 

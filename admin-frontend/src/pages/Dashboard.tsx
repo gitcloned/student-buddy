@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { 
   personasApi, booksApi, gradesApi, teachersApi, subjectsApi,
   childrenApi, chaptersApi, topicsApi, lessonPlansApi,
-  lessonSectionsApi, resourcesApi, learningLevelsApi
+  lessonSectionsApi, resourcesApi, learningLevelsApi, learningIndicatorsApi
 } from '../services/api';
 
 const Dashboard: React.FC = () => {
@@ -19,7 +19,8 @@ const Dashboard: React.FC = () => {
     lessonPlans: 0,
     lessonSections: 0,
     resources: 0,
-    learningLevels: 0
+    learningLevels: 0,
+    learningIndicators: 0
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ const Dashboard: React.FC = () => {
         const [
           personas, books, grades, teachers, subjects,
           children, chapters, topics, lessonPlans, 
-          lessonSections, resources, learningLevels
+          lessonSections, resources, learningLevels, learningIndicators
         ] = await Promise.all([
           personasApi.getAll(),
           booksApi.getAll(),
@@ -44,7 +45,8 @@ const Dashboard: React.FC = () => {
           lessonPlansApi.getAll(),
           lessonSectionsApi.getAll(),
           resourcesApi.getAll(),
-          learningLevelsApi.getAll()
+          learningLevelsApi.getAll(),
+          learningIndicatorsApi.getAll()
         ]);
         
         setEntityCounts({
@@ -59,7 +61,8 @@ const Dashboard: React.FC = () => {
           lessonPlans: lessonPlans.length,
           lessonSections: lessonSections.length,
           resources: resources.length,
-          learningLevels: learningLevels.length
+          learningLevels: learningLevels.length,
+          learningIndicators: learningIndicators.length
         });
         setError(null);
       } catch (err) {
@@ -155,6 +158,12 @@ const Dashboard: React.FC = () => {
       count: entityCounts.learningLevels,
       linkTo: '/learning-levels',
       icon: '📊'
+    },
+    {
+      title: 'Learning Indicators',
+      count: entityCounts.learningIndicators,
+      linkTo: '/learning-indicators',
+      icon: '🎯'
     },
     {
       title: 'Books & Features',

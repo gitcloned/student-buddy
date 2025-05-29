@@ -132,6 +132,21 @@ async function initializeDatabase() {
       FOREIGN KEY (topic_id) REFERENCES topics(id)
     );
 
+    CREATE TABLE IF NOT EXISTS learning_indicators (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      topic_id INTEGER,
+      FOREIGN KEY (topic_id) REFERENCES topics(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS learning_indicator_resources (
+      learning_indicator_id INTEGER,
+      resource_id INTEGER,
+      FOREIGN KEY (learning_indicator_id) REFERENCES learning_indicators(id),
+      FOREIGN KEY (resource_id) REFERENCES resources(id),
+      PRIMARY KEY (learning_indicator_id, resource_id)
+    );
+
     CREATE TABLE IF NOT EXISTS child_subjects (
       child_id INTEGER,
       subject_id INTEGER,
@@ -1983,8 +1998,255 @@ app.delete("/api/teachers/:id/subjects/:subjectId", async (req: Request, res: Re
 
     res.status(204).send();
   } catch (error) {
-    console.error("Error removing teacher from subject:", error);
-    res.status(500).json({ error: "Failed to remove teacher from subject" });
+    console.error("Error updating learning indicator:", error);
+    res.status(500).json({ error: "Failed to update learning indicator" });
+  }
+});
+
+// GET all learning indicators
+app.get("/api/learning-indicators", async (req: Request, res: Response) => {
+  try {
+    const learningIndicators = await db.all("SELECT * FROM learning_indicators");
+    res.json(learningIndicators);
+  } catch (error) {
+    console.error("Error fetching learning indicators:", error);
+    res.status(500).json({ error: "Failed to fetch learning indicators" });
+  }
+});
+
+// GET a specific learning indicator
+app.get("/api/learning-indicators/:id", async (req: Request, res: Response) => {
+  try {
+    const learningIndicator = await db.get("SELECT * FROM learning_indicators WHERE id = ?", req.params.id);
+    if (!learningIndicator) {
+      res.status(404).json({ error: "Learning indicator not found" });
+      return;
+    }
+    res.json(learningIndicator);
+  } catch (error) {
+    console.error("Error fetching learning indicator:", error);
+    res.status(500).json({ error: "Failed to fetch learning indicator" });
+  }
+});
+
+// POST create a new learning indicator
+app.post("/api/learning-indicators", async (req: Request, res: Response) => {
+  const { title, topic_id } = req.body;
+
+  if (!title || !topic_id) {
+    res.status(400).json({ error: "Title and topic ID are required" });
+    return;
+  }
+
+  try {
+    // Check if topic exists
+    const topic = await db.get("SELECT * FROM topics WHERE id = ?", topic_id);
+    if (!topic) {
+      res.status(404).json({ error: "Topic not found" });
+      return;
+    }
+
+    const result = await db.run(
+      "INSERT INTO learning_indicators (title, topic_id) VALUES (?, ?)",
+      [title, topic_id]
+    );
+
+    const newLearningIndicator = {
+      id: result.lastID,
+      title,
+      topic_id
+    };
+
+    res.status(201).json(newLearningIndicator);
+  } catch (error) {
+    console.error("Error creating learning indicator:", error);
+    res.status(500).json({ error: "Failed to create learning indicator" });
+  }
+});
+
+// PUT update a learning indicator
+app.put("/api/learning-indicators/:id", async (req: Request, res: Response) => {
+  const { title, topic_id } = req.body;
+  const id = req.params.id;
+
+  if (!title || !topic_id) {
+    res.status(400).json({ error: "Title and topic ID are required" });
+    return;
+  }
+
+  try {
+    // Check if learning indicator exists
+    const learningIndicator = await db.get("SELECT * FROM learning_indicators WHERE id = ?", id);
+    if (!learningIndicator) {
+      res.status(404).json({ error: "Learning indicator not found" });
+      return;
+    }
+
+    // Check if topic exists
+    const topic = await db.get("SELECT * FROM topics WHERE id = ?", topic_id);
+    if (!topic) {
+      res.status(404).json({ error: "Topic not found" });
+      return;
+    }
+
+    await db.run(
+      "UPDATE learning_indicators SET title = ?, topic_id = ? WHERE id = ?",
+      [title, topic_id, id]
+    );
+
+    const updatedLearningIndicator = {
+      id: Number(id),
+      title,
+      topic_id
+    };
+
+    res.json(updatedLearningIndicator);
+  } catch (error) {
+    console.error("Error updating learning indicator:", error);
+    res.status(500).json({ error: "Failed to update learning indicator" });
+  }
+});
+
+app.delete("/api/learning-indicators/:id", async (req: Request, res: Response) => {
+  const id = req.params.id;
+
+  try {
+    // Check if learning indicator exists
+    const learningIndicator = await db.get("SELECT * FROM learning_indicators WHERE id = ?", id);
+    if (!learningIndicator) {
+      res.status(404).json({ error: "Learning indicator not found" });
+      return;
+    }
+
+    // Delete associated resource relationships first
+    await db.run("DELETE FROM learning_indicator_resources WHERE learning_indicator_id = ?", id);
+    
+    // Delete the learning indicator
+    await db.run("DELETE FROM learning_indicators WHERE id = ?", id);
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting learning indicator:", error);
+    res.status(500).json({ error: "Failed to delete learning indicator" });
+  }
+});
+
+// Learning Indicator Resources API
+app.get("/api/learning-indicators/:id/resources", async (req: Request, res: Response) => {
+  try {
+    const resources = await db.all(
+      `SELECT r.* FROM resources r 
+       JOIN learning_indicator_resources lir ON r.id = lir.resource_id 
+       WHERE lir.learning_indicator_id = ?`,
+      req.params.id
+    );
+    res.json(resources);
+  } catch (error) {
+    console.error("Error fetching learning indicator resources:", error);
+    res.status(500).json({ error: "Failed to fetch learning indicator resources" });
+  }
+});
+
+app.post("/api/learning-indicators/:id/resources", async (req: Request, res: Response) => {
+  const { resource_id } = req.body;
+  const learning_indicator_id = req.params.id;
+
+  if (!resource_id) {
+    res.status(400).json({ error: "Resource ID is required" });
+    return;
+  }
+
+  try {
+    // Check if learning indicator exists
+    const learningIndicator = await db.get("SELECT * FROM learning_indicators WHERE id = ?", learning_indicator_id);
+    if (!learningIndicator) {
+      res.status(404).json({ error: "Learning indicator not found" });
+      return;
+    }
+
+    // Check if resource exists
+    const resource = await db.get("SELECT * FROM resources WHERE id = ?", resource_id);
+    if (!resource) {
+      res.status(404).json({ error: "Resource not found" });
+      return;
+    }
+
+    // Check if relationship already exists
+    const existingRelationship = await db.get(
+      "SELECT * FROM learning_indicator_resources WHERE learning_indicator_id = ? AND resource_id = ?",
+      [learning_indicator_id, resource_id]
+    );
+
+    if (existingRelationship) {
+      res.status(409).json({ error: "Resource is already associated with this learning indicator" });
+      return;
+    }
+
+    await db.run(
+      "INSERT INTO learning_indicator_resources (learning_indicator_id, resource_id) VALUES (?, ?)",
+      [learning_indicator_id, resource_id]
+    );
+
+    res.status(201).json({ learning_indicator_id: Number(learning_indicator_id), resource_id: Number(resource_id) });
+  } catch (error) {
+    console.error("Error adding resource to learning indicator:", error);
+    res.status(500).json({ error: "Failed to add resource to learning indicator" });
+  }
+});
+
+app.delete("/api/learning-indicators/:id/resources/:resourceId", async (req: Request, res: Response) => {
+  const learning_indicator_id = req.params.id;
+  const resource_id = req.params.resourceId;
+
+  try {
+    // Check if relationship exists
+    const relationship = await db.get(
+      "SELECT * FROM learning_indicator_resources WHERE learning_indicator_id = ? AND resource_id = ?",
+      [learning_indicator_id, resource_id]
+    );
+
+    if (!relationship) {
+      res.status(404).json({ error: "Resource is not associated with this learning indicator" });
+      return;
+    }
+
+    await db.run(
+      "DELETE FROM learning_indicator_resources WHERE learning_indicator_id = ? AND resource_id = ?",
+      [learning_indicator_id, resource_id]
+    );
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error removing resource from learning indicator:", error);
+    res.status(500).json({ error: "Failed to remove resource from learning indicator" });
+  }
+});
+
+// Get learning indicators by learning outcome
+app.get("/api/lesson-plans/:id/learning-indicators", async (req: Request, res: Response) => {
+  try {
+    const learningIndicators = await db.all(
+      "SELECT * FROM learning_indicators WHERE learning_outcome_id = ?",
+      req.params.id
+    );
+    res.json(learningIndicators);
+  } catch (error) {
+    console.error("Error fetching learning indicators for learning outcome:", error);
+    res.status(500).json({ error: "Failed to fetch learning indicators for learning outcome" });
+  }
+});
+
+// Get learning indicators by topic
+app.get("/api/topics/:id/learning-indicators", async (req: Request, res: Response) => {
+  try {
+    const learningIndicators = await db.all(
+      "SELECT * FROM learning_indicators WHERE topic_id = ?",
+      req.params.id
+    );
+    res.json(learningIndicators);
+  } catch (error) {
+    console.error("Error fetching learning indicators for topic:", error);
+    res.status(500).json({ error: "Failed to fetch learning indicators for topic" });
   }
 });
 

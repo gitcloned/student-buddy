@@ -104,6 +104,17 @@ export interface BookFeature {
     how_to_teach: string;
 }
 
+export interface LearningIndicator {
+    id?: number;
+    title: string;
+    topic_id: number;
+}
+
+export interface LearningIndicatorResource {
+    learning_indicator_id: number;
+    resource_id: number;
+}
+
 export interface Book {
     id: number;
     features: BookFeature[];

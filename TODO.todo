@@ -48,4 +48,11 @@ Teacher:
         ✔ If text is also in hindi, then it works better @started(25-04-28 00:04) @done(25-04-28 00:04) @lasted(15s)
 
 Mandgaon pilot:
-    ☐ 
+    ☐ Use topic as learning outcome
+    ☐ Introduce an entity as learning indicator
+        ☐ Learning indicator should have asessing questions
+    ☐ Introduce an entity as Homework. Each LO can have homework. Homework is nothing but series of questions
+    ☐ Learning level should also be against the learning indicator, and should have state as well as: null, assessing, teaching, taught
+    ☐ Upload content for first 2 pages
+    ☐ Modify the prompt skeleton and prompt picking
+        ☐ Tool 
