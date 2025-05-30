@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import sqlite3 from "sqlite3";
 import { Database, open } from "sqlite";
 import dotenv from "dotenv";
+import { LearningProgressionController } from "./controllers/learningProgressionController";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -20,6 +21,9 @@ async function initializeDatabase() {
     filename: process.env.DATABASE_FILEPATH || "./admin_database.sqlite",
     driver: sqlite3.Database,
   });
+  
+  // Initialize the learning progression controller after database is ready
+  learningProgressionController = new LearningProgressionController(db);
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS grades (
@@ -1930,11 +1934,24 @@ app.get("/api/children/:id/subjects", async (req: Request, res: Response) => {
       return;
     }
 
+    // Get the child's grade first
+    const childWithGrade = await db.get(`
+      SELECT c.*, g.id as grade_id, g.name as grade_name 
+      FROM children c
+      JOIN grades g ON c.grade_id = g.id
+      WHERE c.id = ?
+    `, req.params.id);
+    
+    if (!childWithGrade.grade_id) {
+      res.status(400).json({ error: "Child does not have an assigned grade" });
+      return;
+    }
+    
+    // Get subjects for the child's grade
     const subjects = await db.all(`
       SELECT s.* FROM subjects s
-      JOIN child_subjects cs ON s.id = cs.subject_id
-      WHERE cs.child_id = ?
-    `, req.params.id);
+      WHERE s.grade_id = ?
+    `, childWithGrade.grade_id);
     res.json(subjects);
   } catch (error) {
     console.error("Error fetching child's subjects:", error);
@@ -2324,6 +2341,14 @@ app.get("/api/topics/:id/learning-indicators", async (req: Request, res: Respons
     console.error("Error fetching learning indicators for topic:", error);
     res.status(500).json({ error: "Failed to fetch learning indicators for topic" });
   }
+});
+
+// Learning progression controller will be initialized after database setup
+let learningProgressionController: LearningProgressionController;
+
+// GET a child's learning progression across a chapter
+app.get("/api/children/:childId/chapters/:chapterId/learning-progression", (req, res) => {
+  learningProgressionController.getLearningProgression(req, res);
 });
 
 // Start the admin API server

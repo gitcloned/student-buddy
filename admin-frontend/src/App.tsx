@@ -58,6 +58,9 @@ import LearningIndicatorList from './pages/learning-indicators/LearningIndicator
 import LearningIndicatorForm from './pages/learning-indicators/LearningIndicatorForm';
 import LearningIndicatorResources from './pages/learning-indicators/LearningIndicatorResources';
 
+// Learning Progression
+import LearningProgressionPage from './pages/LearningProgressionPage';
+
 // POCs
 import ChalkboardTypingEffect from './pages/pocs/ChalkboardTest';
 
@@ -136,6 +139,9 @@ const App: React.FC = () => {
           <Route path="/learning-indicators/create" element={<LearningIndicatorForm />} />
           <Route path="/learning-indicators/edit/:id" element={<LearningIndicatorForm isEditing />} />
           <Route path="/learning-indicators/:id/resources" element={<LearningIndicatorResources />} />
+          
+          {/* Learning Progression */}
+          <Route path="/learning-progression" element={<LearningProgressionPage />} />
           
           {/* POCs */}
           <Route path="/tests/chalkboard" element={<ChalkboardTypingEffect />} />

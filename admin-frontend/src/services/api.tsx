@@ -2,14 +2,16 @@ import axios from 'axios';
 import { 
   TeacherPersona, Book, BookFeature, Grade, Teacher, Subject, Child, 
   Chapter, Topic, TopicPrerequisite, LessonPlan, LessonSection, 
-  Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource 
+  Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource,
+  LearningProgression, TopicProgress, LearningIndicatorProgress
 } from '../types';
 
 // Re-export all the types for components to use
 export type { 
   TeacherPersona, Book, BookFeature, Grade, Teacher, Subject, Child, 
   Chapter, Topic, TopicPrerequisite, LessonPlan, LessonSection, 
-  Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource 
+  Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource,
+  LearningProgression, TopicProgress, LearningIndicatorProgress
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
@@ -261,6 +263,11 @@ export const childrenApi = {
   
   getLearningLevels: async (id: number): Promise<LearningLevel[]> => {
     const response = await apiClient.get(`/children/${id}/learning-levels`);
+    return response.data;
+  },
+  
+  getLearningProgression: async (childId: number, chapterId: number): Promise<LearningProgression> => {
+    const response = await apiClient.get(`/children/${childId}/chapters/${chapterId}/learning-progression`);
     return response.data;
   },
 };

@@ -121,3 +121,29 @@ export interface Book {
     id: number;
     features: BookFeature[];
 }
+
+export interface LearningIndicatorProgress {
+    id: number;
+    title: string;
+    commonMisconception: string | null;
+    level: 'Weak' | 'Average' | 'Strong' | null;
+    state: 'assess' | 'teach' | 'taught' | null;
+    lastEvaluatedOn: string | null;
+    doNotUnderstand: string | null;
+    whatNext: string | null;
+}
+
+export interface TopicProgress {
+    topicId: number;
+    topicName: string;
+    learningIndicators: LearningIndicatorProgress[];
+}
+
+export interface LearningProgression {
+    chapterId: number;
+    chapterName: string;
+    subjectName: string;
+    childId: number;
+    childName: string;
+    topics: TopicProgress[];
+}
