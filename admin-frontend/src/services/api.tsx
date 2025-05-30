@@ -201,12 +201,12 @@ export const subjectsApi = {
     return response.data;
   },
   
-  create: async (subject: { name: string, grade_id: number }): Promise<Subject> => {
+  create: async (subject: { name: string, grade_id: number, book_id?: number, default_teacher_id?: number }): Promise<Subject> => {
     const response = await apiClient.post('/subjects', subject);
     return response.data;
   },
   
-  update: async (id: number, subject: { name: string, grade_id: number }): Promise<Subject> => {
+  update: async (id: number, subject: { name: string, grade_id: number, book_id?: number, default_teacher_id?: number }): Promise<Subject> => {
     const response = await apiClient.put(`/subjects/${id}`, subject);
     return response.data;
   },

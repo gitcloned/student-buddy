@@ -26,6 +26,8 @@ export interface Subject {
     id?: number;
     name: string;
     grade_id: number;
+    book_id?: number;
+    default_teacher_id?: number;
 }
 
 export interface Child {

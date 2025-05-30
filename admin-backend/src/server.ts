@@ -54,7 +54,11 @@ async function initializeDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       grade_id INTEGER,
-      FOREIGN KEY (grade_id) REFERENCES grades(id)
+      book_id INTEGER,
+      default_teacher_id INTEGER,
+      FOREIGN KEY (grade_id) REFERENCES grades(id),
+      FOREIGN KEY (book_id) REFERENCES books(id),
+      FOREIGN KEY (default_teacher_id) REFERENCES teachers(id)
     );
 
     CREATE TABLE IF NOT EXISTS children (
@@ -602,7 +606,7 @@ app.get("/api/subjects/:id", async (req: Request, res: Response) => {
 });
 
 app.post("/api/subjects", async (req: Request, res: Response) => {
-  const { name, grade_id } = req.body;
+  const { name, grade_id, book_id, default_teacher_id } = req.body;
 
   if (!name || !grade_id) {
     res.status(400).json({ error: "Name and grade_id are required" });
@@ -616,8 +620,29 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid grade_id" });
       return;
     }
+    
+    // Verify book_id if provided
+    if (book_id) {
+      const bookExists = await db.get("SELECT id FROM books WHERE id = ?", book_id);
+      if (!bookExists) {
+        res.status(400).json({ error: "Invalid book_id" });
+        return;
+      }
+    }
+    
+    // Verify teacher_id if provided
+    if (default_teacher_id) {
+      const teacherExists = await db.get("SELECT id FROM teachers WHERE id = ?", default_teacher_id);
+      if (!teacherExists) {
+        res.status(400).json({ error: "Invalid default_teacher_id" });
+        return;
+      }
+    }
 
-    const result = await db.run("INSERT INTO subjects (name, grade_id) VALUES (?, ?)", [name, grade_id]);
+    const result = await db.run(
+      "INSERT INTO subjects (name, grade_id, book_id, default_teacher_id) VALUES (?, ?, ?, ?)", 
+      [name, grade_id, book_id || null, default_teacher_id || null]
+    );
     const id = result.lastID;
     const subject = await db.get("SELECT * FROM subjects WHERE id = ?", id);
     res.status(201).json(subject);
@@ -628,7 +653,7 @@ app.post("/api/subjects", async (req: Request, res: Response) => {
 });
 
 app.put("/api/subjects/:id", async (req: Request, res: Response) => {
-  const { name, grade_id } = req.body;
+  const { name, grade_id, book_id, default_teacher_id } = req.body;
   const id = req.params.id;
 
   if (!name || !grade_id) {
@@ -643,8 +668,29 @@ app.put("/api/subjects/:id", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Invalid grade_id" });
       return;
     }
+    
+    // Verify book_id if provided
+    if (book_id) {
+      const bookExists = await db.get("SELECT id FROM books WHERE id = ?", book_id);
+      if (!bookExists) {
+        res.status(400).json({ error: "Invalid book_id" });
+        return;
+      }
+    }
+    
+    // Verify teacher_id if provided
+    if (default_teacher_id) {
+      const teacherExists = await db.get("SELECT id FROM teachers WHERE id = ?", default_teacher_id);
+      if (!teacherExists) {
+        res.status(400).json({ error: "Invalid default_teacher_id" });
+        return;
+      }
+    }
 
-    await db.run("UPDATE subjects SET name = ?, grade_id = ? WHERE id = ?", [name, grade_id, id]);
+    await db.run(
+      "UPDATE subjects SET name = ?, grade_id = ?, book_id = ?, default_teacher_id = ? WHERE id = ?", 
+      [name, grade_id, book_id || null, default_teacher_id || null, id]
+    );
     const subject = await db.get("SELECT * FROM subjects WHERE id = ?", id);
     if (!subject) {
       res.status(404).json({ error: "Subject not found" });

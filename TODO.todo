@@ -36,7 +36,7 @@ Usecases:
         ☐ Should write steps in detail, the way child have been taught - this is teaching pedagoy of that LO
 
 Chalkboard:
-    ☐ Prompt should understand well what to use chalkboard for. Right now it misses a lot of times
+    ✔ Prompt should understand well what to use chalkboard for. Right now it misses a lot of times @done(25-05-30 12:45)
     ☐ Should pick random places to write
     ☐ Increase font a bit and slow down writing a bit
 
@@ -58,7 +58,17 @@ Mangaon pilot:
     ✔ APIs @done(25-05-30 12:02)
         ✔ API to change the stage of learning @done(25-05-30 12:02)
         ✔ API to fetch the stage of learning @started(25-05-29 15:06) @done(25-05-30 12:02) @lasted(20h56m28s)
-    ☐ Modify the prompt skeleton and prompt picking
+    ☐ Modify the prompt skeleton and prompt picking @started(25-05-30 12:44)
+        ✔ Map book to subject @started(25-05-30 13:03) @done(25-05-30 13:48) @lasted(45m5s)
+        ✔ Map teacher to subject @started(25-05-30 13:03) @done(25-05-30 13:48) @lasted(45m6s)
+        ☐ UI
+            ☐ Child picker -> when child is not selected (support query param)
+            ☐ Subject picker -> when subject is not specified (support query param)
+            ☐ AI tutor -> provided above (then it tries to pick which feature to teach)
+            ☐ Default feature as chapters (support query param)
+        ☐ How to teach
+            ☐ Features to be a class and override on how to teach
+            ☐ Chapter feature to include the plan for today and learning level
     ☐ Script should be written in Hindi
         ☐ To see if we should skip writing chat if something is written as part of chalkboard
     ☐ Need to have support of dev/prod databases

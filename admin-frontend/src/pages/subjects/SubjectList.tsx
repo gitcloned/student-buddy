@@ -1,22 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { subjectsApi, Subject, gradesApi, Grade } from '../../services/api';
+import { subjectsApi, Subject, gradesApi, Grade, booksApi, Book, teachersApi, Teacher } from '../../services/api';
 
 const SubjectList: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [grades, setGrades] = useState<Grade[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [subjectsData, gradesData] = await Promise.all([
+      const [subjectsData, gradesData, booksData, teachersData] = await Promise.all([
         subjectsApi.getAll(),
-        gradesApi.getAll()
+        gradesApi.getAll(),
+        booksApi.getAll(),
+        teachersApi.getAll()
       ]);
       setSubjects(subjectsData);
       setGrades(gradesData);
+      setBooks(booksData);
+      setTeachers(teachersData);
       setError(null);
     } catch (err) {
       setError('Failed to load subjects. Please try again.');
@@ -47,6 +53,18 @@ const SubjectList: React.FC = () => {
   const getGradeName = (gradeId: number): string => {
     const grade = grades.find(g => g.id === gradeId);
     return grade ? grade.name : 'Unknown Grade';
+  };
+
+  const getBookName = (bookId?: number): string => {
+    if (!bookId) return 'Not assigned';
+    const book = books.find(b => b.id === bookId);
+    return book ? `Book #${book.id}` : 'Unknown Book';
+  };
+
+  const getTeacherName = (teacherId?: number): string => {
+    if (!teacherId) return 'Not assigned';
+    const teacher = teachers.find(t => t.id === teacherId);
+    return teacher ? teacher.name : 'Unknown Teacher';
   };
 
   if (isLoading) {
@@ -93,6 +111,12 @@ const SubjectList: React.FC = () => {
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Grade
                 </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Book
+                </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Default Teacher
+                </th>
                 <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -104,6 +128,8 @@ const SubjectList: React.FC = () => {
                   <td className="py-4 px-4 whitespace-nowrap">{subject.id}</td>
                   <td className="py-4 px-4 whitespace-nowrap">{subject.name}</td>
                   <td className="py-4 px-4 whitespace-nowrap">{getGradeName(subject.grade_id)}</td>
+                  <td className="py-4 px-4 whitespace-nowrap">{getBookName(subject.book_id)}</td>
+                  <td className="py-4 px-4 whitespace-nowrap">{getTeacherName(subject.default_teacher_id)}</td>
                   <td className="py-4 px-4 whitespace-nowrap text-right">
                     <Link
                       to={`/subjects/${subject.id}`}

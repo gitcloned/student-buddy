@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { subjectsApi, gradesApi, Subject, Grade } from '../../services/api';
+import { subjectsApi, gradesApi, booksApi, teachersApi, Subject, Grade, Book, Teacher } from '../../services/api';
 
 const SubjectForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -9,23 +9,41 @@ const SubjectForm: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [grades, setGrades] = useState<Grade[]>([]);
-  const [formValues, setFormValues] = useState<{ name: string; grade_id: number | string }>({ 
+  const [books, setBooks] = useState<Book[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [formValues, setFormValues] = useState<{ 
+    name: string; 
+    grade_id: number | string;
+    book_id?: number | string;
+    default_teacher_id?: number | string;
+  }>({ 
     name: '', 
-    grade_id: '' 
+    grade_id: '',
+    book_id: '',
+    default_teacher_id: ''
   });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const gradesData = await gradesApi.getAll();
+        const [gradesData, booksData, teachersData] = await Promise.all([
+          gradesApi.getAll(),
+          booksApi.getAll(),
+          teachersApi.getAll()
+        ]);
+        
         setGrades(gradesData);
+        setBooks(booksData);
+        setTeachers(teachersData);
 
         if (id && id !== 'new') {
           const subject = await subjectsApi.getById(parseInt(id));
           setFormValues({ 
             name: subject.name,
-            grade_id: subject.grade_id
+            grade_id: subject.grade_id,
+            book_id: subject.book_id || '',
+            default_teacher_id: subject.default_teacher_id || ''
           });
         }
         
@@ -65,7 +83,9 @@ const SubjectForm: React.FC = () => {
       
       const subjectData = {
         name: formValues.name,
-        grade_id: Number(formValues.grade_id)
+        grade_id: Number(formValues.grade_id),
+        book_id: formValues.book_id ? Number(formValues.book_id) : undefined,
+        default_teacher_id: formValues.default_teacher_id ? Number(formValues.default_teacher_id) : undefined
       };
       
       if (id && id !== 'new') {
@@ -134,6 +154,46 @@ const SubjectForm: React.FC = () => {
             {grades.map((grade) => (
               <option key={grade.id} value={grade.id}>
                 {grade.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="book_id">
+            Book (Optional)
+          </label>
+          <select
+            id="book_id"
+            name="book_id"
+            value={formValues.book_id || ''}
+            onChange={handleChange}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          >
+            <option value="">Select a book</option>
+            {books.map((book) => (
+              <option key={book.id} value={book.id}>
+                {book.id} {/* Replace with book name/title if available */}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="default_teacher_id">
+            Default Teacher (Optional)
+          </label>
+          <select
+            id="default_teacher_id"
+            name="default_teacher_id"
+            value={formValues.default_teacher_id || ''}
+            onChange={handleChange}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          >
+            <option value="">Select a teacher</option>
+            {teachers.map((teacher) => (
+              <option key={teacher.id} value={teacher.id}>
+                {teacher.name}
               </option>
             ))}
           </select>
