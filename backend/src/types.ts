@@ -105,3 +105,29 @@ export interface Book {
     id: number;
     features: BookFeature[];
 }
+
+export interface LearningIndicatorWithLevel {
+    id: number;
+    title: string;
+    commonMisconception?: string;
+    level: 'Weak' | 'Average' | 'Strong' | null;
+    state: 'assess' | 'teach' | 'taught' | null;
+    lastEvaluatedOn: string | null;
+    doNotUnderstand: string | null;
+    whatNext: string | null;
+}
+
+export interface TopicWithLearningIndicators {
+    topicId: number;
+    topicName: string;
+    learningIndicators: LearningIndicatorWithLevel[];
+}
+
+export interface LearningProgression {
+    chapterId: number;
+    chapterName: string;
+    subjectName: string;
+    childId: number;
+    childName: string;
+    topics: TopicWithLearningIndicators[];
+}

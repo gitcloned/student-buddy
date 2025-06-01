@@ -16,11 +16,17 @@ class ConversationManager {
     return ConversationManager.instance;
   }
 
-  public createSession(sessionId: string, grade: string, bookIds: number[]): void {
+  public createSession(
+    sessionId: string, 
+    studentId: number,
+    subjectId?: number, 
+    featureId?: number
+  ): void {
     this.sessions.set(sessionId, new Session({
       sessionId,
-      grade,
-      bookIds
+      studentId,
+      subjectId,
+      featureId
     }));
   }
 

@@ -1,4 +1,4 @@
-import { TeacherPersona, BookFeature as BookFeatureType } from "./types";
+import { TeacherPersona, BookFeature as BookFeatureType, Subject } from "./types";
 import { Database } from "sqlite";
 import { getScriptToWriteIn, loadTeacherPersona } from "./TeacherPersonaLoader";
 import { loadBookFeatures } from "./PedagogicalKnowledgeLoader";
@@ -8,23 +8,30 @@ export default class Session {
   _teacherPersona: TeacherPersona | undefined;
   _bookFeatures: BookFeatureType[] | undefined;
   sessionId: string;
-  grade: string;
-  bookIds: number[];
+  studentId: number;
+  subjectId?: number;
+  featureId?: number;
+  grade?: string;
+  bookIds?: number[];
+  subjectStudying?: Subject;
   featureStudying?: BookFeatureType | null;
   _messages: ChatCompletionMessageParam[];
 
   constructor({
     sessionId,
-    grade,
-    bookIds,
+    studentId,
+    subjectId,
+    featureId,
   }: {
     sessionId: string;
-    grade: string;
-    bookIds: number[]
+    studentId: number;
+    subjectId?: number;
+    featureId?: number;
   }) {
     this.sessionId = sessionId;
-    this.grade = grade;
-    this.bookIds = bookIds;
+    this.studentId = studentId;
+    this.subjectId = subjectId;
+    this.featureId = featureId;
     this._messages = []
   }
 
@@ -135,11 +142,91 @@ write:
   }
 
   currentlyStudying(featureName: string) {
-    this.featureStudying = this._bookFeatures?.find(f => f.name === featureName) ?? null;
+    const feature = this._bookFeatures?.find(f => f.name === featureName);
+    if (feature) {
+      this.featureStudying = feature;
+      // When setting from a feature, we need to fetch the full subject details
+      // We'll do this in the initialise method if featureId is provided
+    } else {
+      this.featureStudying = null;
+    }
+  }
+
+  setSubjectStudying(subject: Subject) {
+    this.subjectStudying = subject;
   }
 
   async initialise(db: Database): Promise<void> {
+    // Fetch student's grade based on studentId
+    const studentData = await db.get(
+      'SELECT c.id, g.name as grade FROM children c JOIN grades g ON c.grade_id = g.id WHERE c.id = ?',
+      this.studentId
+    );
+
+    if (!studentData) {
+      throw new Error(`Student with ID ${this.studentId} not found`);
+    }
+
+    this.grade = studentData.grade;
+
+    // Fetch books for the student's grade
+    // Step 1: Get the grade_id for the child
+    const gradeRow = await db.get(
+      `SELECT grade_id FROM children WHERE id = ?`,
+      this.studentId
+    );
+    const gradeId = gradeRow?.grade_id;
+
+    // Step 2: Get all book_ids for subjects with that grade_id
+    const bookIdsData = await db.all(
+      `SELECT book_id FROM subjects WHERE grade_id = ? AND book_id IS NOT NULL`,
+      gradeId
+    );
+    const bookIds = bookIdsData.map(row => row.book_id);
+
+    // Step 3: Fetch all books with those IDs (if any)
+    let booksData = [];
+    if (bookIds.length > 0) {
+      booksData = await db.all(
+        `SELECT id FROM books WHERE id IN (${bookIds.map(() => '?').join(',')})`,
+        ...bookIds
+      );
+    }
+
+    this.bookIds = booksData.map(book => book.id);
+
+    // If subjectId was provided, mark it as studying
+    if (this.subjectId) {
+      const subjectData = await db.get(
+        'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE id = ?',
+        this.subjectId
+      );
+      if (subjectData) {
+        this.setSubjectStudying(subjectData);
+      }
+    }
+
+    // Load teacher persona and book features
     this.teacherPersona = await loadTeacherPersona(this.sessionId, db);
     this.bookFeatures = await loadBookFeatures(this.sessionId, db);
+
+    // If featureId was provided, mark it as studying
+    if (this.featureId) {
+      const featureData = await db.get('SELECT name, subject FROM book_features WHERE id = ?', this.featureId);
+      if (featureData) {
+        this.currentlyStudying(featureData.name);
+
+        // Also set the subject for this feature if not already set
+        if (!this.subjectStudying && featureData.subject) {
+          const subjectData = await db.get(
+            'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE name = ?',
+            featureData.subject
+          );
+          if (subjectData) {
+            this.setSubjectStudying(subjectData);
+          }
+        }
+      }
+    }
   }
 }

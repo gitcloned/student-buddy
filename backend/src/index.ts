@@ -58,17 +58,34 @@ wss.on("connection", (ws) => {
 
       if (data.type === "session") {
         currentSessionId = data.sessionId;
+        
+        // Validate required studentId
+        if (!data.studentId) {
+          throw new Error("studentId is required for session creation");
+        }
+        
+        // Create session based on provided parameters
         conversationManager.createSession(
           data.sessionId,
-          data.grade,
-          data.bookIds
+          Number(data.studentId),
+          data.subjectId ? Number(data.subjectId) : undefined,
+          data.featureId ? Number(data.featureId) : undefined
         );
 
-        await conversationManager.getSession(data.sessionId)?.initialise(db);
+        // Initialize the session (loads student data, teacher persona and book features)
+        const session = await conversationManager.getSession(data.sessionId);
+        await session?.initialise(db);
 
-        console.log(
-          `Created session ${data.sessionId} for grade "${data.grade}" child and bookIds ${data.bookIds}`
-        );
+        // Log session creation with appropriate details
+        let logMessage = `Created session ${data.sessionId} for student ID ${data.studentId}`;
+        if (data.subjectId) {
+          logMessage += `, studying subject ID ${data.subjectId}`;
+        }
+        if (data.featureId) {
+          logMessage += `, studying feature ID ${data.featureId}`;
+        }
+        console.log(logMessage);
+        
         ws.send(JSON.stringify({ type: "session-created", session: conversationManager.getSession(data.sessionId) }));
         return;
       }

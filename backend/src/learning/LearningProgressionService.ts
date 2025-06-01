@@ -116,9 +116,10 @@ export class LearningProgressionService {
       };
     } catch (error) {
       console.error("Error fetching learning progression:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         type: "error",
-        error: `Failed to fetch learning progression: ${error.message}`
+        error: `Failed to fetch learning progression: ${errorMessage}`
       };
     }
   }

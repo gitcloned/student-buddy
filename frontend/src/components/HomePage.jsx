@@ -9,7 +9,7 @@ import Chalkboard from "./Chalkboard";
 import Session from "../models/Session";
 import { generateGreeting } from "../utils/generateGreeting";
 
-const HomePage = ({ grade, bookIds }) => {
+const HomePage = ({ studentId, subjectId, featureId }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [socket, setSocket] = useState(null);
@@ -40,7 +40,7 @@ const HomePage = ({ grade, bookIds }) => {
     hasInitialized.current = true;
     async function initializeSession() {
       try {
-        const createdSession = await Session.create(grade, bookIds);
+        const createdSession = await Session.create(studentId, subjectId, featureId);
         setSession(createdSession);
         const ws = new WebSocket("ws://localhost:8000");
         setSocket(ws);
@@ -51,8 +51,9 @@ const HomePage = ({ grade, bookIds }) => {
             JSON.stringify({
               type: "session",
               sessionId: createdSession.sessionId,
-              grade: createdSession.grade,
-              bookIds: createdSession.bookIds,
+              studentId: createdSession.studentId,
+              subjectId: createdSession.subjectId,
+              featureId: createdSession.featureId
             })
           );
           // setMessages([
@@ -198,7 +199,7 @@ const HomePage = ({ grade, bookIds }) => {
       }
     }
     initializeSession();
-  }, [grade, bookIds]);
+  }, [studentId, subjectId, featureId]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
