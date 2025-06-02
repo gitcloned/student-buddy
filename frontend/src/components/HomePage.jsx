@@ -9,7 +9,7 @@ import Chalkboard from "./Chalkboard";
 import Session from "../models/Session";
 import { generateGreeting } from "../utils/generateGreeting";
 
-const HomePage = ({ studentId, subjectId, featureId }) => {
+const HomePage = ({ studentId, subjectId, childData, subjectData, featureName: propFeatureName }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [socket, setSocket] = useState(null);
@@ -35,12 +35,37 @@ const HomePage = ({ studentId, subjectId, featureId }) => {
     );
   }, []);
 
+  // Extract feature name and chapter ID from props, URL params, or subject data
+  const [featureName, setFeatureName] = useState(propFeatureName || null);
+  const [chapterId, setChapterId] = useState(null);
+
+  // Check props and URL params for feature name
+  useEffect(() => {
+    // If feature name is provided as prop, use it
+    if (propFeatureName) {
+      setFeatureName(propFeatureName);
+    } else {
+      // Otherwise check URL params
+      const params = new URLSearchParams(window.location.search);
+      const featureParam = params.get('featureName');
+      
+      if (featureParam) {
+        setFeatureName(featureParam);
+      }
+    }
+    
+    // If subject has a selected chapter (from Chapter Teaching feature)
+    if (subjectData && subjectData.selectedChapter) {
+      setChapterId(subjectData.selectedChapter.id);
+    }
+  }, [propFeatureName, subjectData]);
+
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
     async function initializeSession() {
       try {
-        const createdSession = await Session.create(studentId, subjectId, featureId);
+        const createdSession = await Session.create(studentId, subjectId, featureName, chapterId);
         setSession(createdSession);
         const ws = new WebSocket("ws://localhost:8000");
         setSocket(ws);
@@ -53,7 +78,8 @@ const HomePage = ({ studentId, subjectId, featureId }) => {
               sessionId: createdSession.sessionId,
               studentId: createdSession.studentId,
               subjectId: createdSession.subjectId,
-              featureId: createdSession.featureId
+              featureName: createdSession.featureName,
+              chapterId: createdSession.chapterId
             })
           );
           // setMessages([
@@ -199,7 +225,7 @@ const HomePage = ({ studentId, subjectId, featureId }) => {
       }
     }
     initializeSession();
-  }, [studentId, subjectId, featureId]);
+  }, [studentId, subjectId, featureName, chapterId]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -356,6 +382,24 @@ const HomePage = ({ studentId, subjectId, featureId }) => {
               )}
             </div>
 
+            <div className="flex flex-col w-full mb-4 hidden">
+              <h1 className="text-3xl font-bold text-white mb-4">
+                {subjectData ? subjectData.name : "Subject"}
+              </h1>
+              
+              {/* Display chapter information if available */}
+              {subjectData && subjectData.selectedChapter && (
+                <div className="bg-yellow-100 rounded-lg p-4 mb-4 shadow-md">
+                  <h2 className="text-xl font-semibold text-[#244d2b] mb-2">
+                    Chapter: {subjectData.selectedChapter.name}
+                  </h2>
+                  <p className="text-gray-700 text-sm">
+                    {subjectData.selectedChapter.description}
+                  </p>
+                </div>
+              )}
+            </div>
+            
             <div className="absolute bottom-4 right-4 flex items-center gap-2">
               <div className="flex items-center gap-2 mt-4">
                 <input

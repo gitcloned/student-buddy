@@ -1,4 +1,4 @@
-import { TeacherPersona, BookFeature as BookFeatureType, Subject } from "./types";
+import { TeacherPersona, BookFeature as BookFeatureType, Subject, Chapter } from "./types";
 import { Feature } from "./features/Feature";
 import { Database } from "sqlite";
 import { loadTeacherPersona } from "./TeacherPersonaLoader";
@@ -6,16 +6,20 @@ import { loadBookFeatures } from "./PedagogicalKnowledgeLoader";
 import { ChatCompletionMessageParam } from "openai/resources/chat";
 import { PromptBuilder } from "./prompt-builder";
 
+import { ChapterTeachingFeature } from "./features/ChapterTeachingFeature";
+
 export class Session {
   _teacherPersona: TeacherPersona | undefined;
   _bookFeatures: BookFeatureType[] | undefined;
   sessionId: string;
   studentId: number;
   subjectId?: number;
-  featureId?: number;
+  featureName?: string;
+  chapterId?: number;
   grade?: string;
   bookIds?: number[];
   subjectStudying?: Subject;
+  chapterStudying?: Chapter;
   featureStudying?: Feature | null;
   _messages: ChatCompletionMessageParam[];
   studentName: string | undefined;
@@ -24,18 +28,21 @@ export class Session {
     sessionId,
     studentId,
     subjectId,
-    featureId,
+    chapterId,
+    featureName,
   }: {
     sessionId: string;
     studentId: number;
     subjectId?: number;
-    featureId?: number;
+    chapterId?: number;
+    featureName?: string;
   }) {
     this.sessionId = sessionId;
     this.studentId = studentId;
     this.subjectId = subjectId;
-    this.featureId = featureId;
-    this._messages = []
+    this.featureName = featureName;
+    this.chapterId = chapterId;
+    this._messages = [];
   }
 
   get teacherPersona(): TeacherPersona | undefined {
@@ -78,6 +85,11 @@ export class Session {
 
   setSubjectStudying(subject: Subject) {
     this.subjectStudying = subject;
+  }
+
+  setChapterStudying(chapter: Chapter) {
+    this.chapterId = chapter.id;
+    this.chapterStudying = chapter;
   }
 
   async initialise(db: Database): Promise<void> {
@@ -131,30 +143,53 @@ export class Session {
       }
     }
 
+    // If chapterId was provided, fetch the complete chapter data
+    if (this.chapterId) {
+      const chapterData = await db.get(
+        'SELECT id, name, subject_id FROM chapters WHERE id = ?',
+        this.chapterId
+      );
+      if (chapterData) {
+        this.setChapterStudying(chapterData);
+        
+        // If subject is not set yet, set it based on the chapter's subject_id
+        if (!this.subjectStudying && chapterData.subject_id) {
+          const subjectData = await db.get(
+            'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE id = ?',
+            chapterData.subject_id
+          );
+          if (subjectData) {
+            this.setSubjectStudying(subjectData);
+          }
+        }
+      }
+    }
+
     // Load teacher persona and book features
     this.teacherPersona = await loadTeacherPersona(this.sessionId, db);
     this.bookFeatures = await loadBookFeatures(this.sessionId, db);
 
-    // If featureId was provided, mark it as studying
-    if (this.featureId) {
+    // If featureName and subjectId were provided, mark it as studying
+    if (this.featureName) {
+      // Get feature by book_id and feature_name
       const featureData = await db.get(
-        'SELECT * FROM book_features WHERE id = ?',
-        this.featureId
+        `SELECT * FROM book_features WHERE book_id IN (${this.bookIds.map(() => '?').join(',')}) AND name LIKE ?`,
+        [...this.bookIds, `%${this.featureName}%`]
       );
-
+      
       if (featureData) {
         // Create the appropriate Feature instance using the factory method
         this.featureStudying = Feature.createFeature(featureData);
-      }
-
-      // Also set the subject for this feature if not already set
-      if (!this.subjectStudying && featureData.subject) {
-        const subjectData = await db.get(
-          'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE name = ?',
-          featureData.subject
-        );
-        if (subjectData) {
-          this.setSubjectStudying(subjectData);
+        
+        // Also set the subject for this feature if not already set
+        if (!this.subjectStudying && featureData.subject) {
+          const subjectDataByName = await db.get(
+            'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE name = ?',
+            featureData.subject
+          );
+          if (subjectDataByName) {
+            this.setSubjectStudying(subjectDataByName);
+          }
         }
       }
     }

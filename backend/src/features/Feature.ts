@@ -1,7 +1,7 @@
 import { Session } from "../Session";
 import { BookFeature as BookFeatureType } from "../types";
-import { ChapterTeachingFeature } from "./ChapterTeachingFeature";
 import { Database } from "sqlite";
+import { FeatureRegistry } from "./FeatureRegistry";
 
 /**
  * Base Feature class that defines the interface for all feature types
@@ -46,8 +46,11 @@ export abstract class Feature {
    */
   static createFeature(feature: BookFeatureType): Feature {
     // Check if this is a chapter teaching feature
-    if (feature.name.toLowerCase().includes('chapter')) {
-      return new ChapterTeachingFeature(feature);
+    if (feature.name.toLowerCase().trim().includes('chapter teaching')) {
+      // We'll use a dynamic approach to avoid circular dependencies
+      // The actual ChapterTeachingFeature instance will be created in a separate file
+      const ChapterFeatureClass = FeatureRegistry.getFeatureClass('chapter teaching');
+      return new ChapterFeatureClass(feature);
     }
     
     // Default case

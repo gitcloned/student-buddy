@@ -1,6 +1,7 @@
 import { Session } from "../Session";
 import { BookFeature } from "../types";
 import { Feature } from "./Feature";
+import { FeatureRegistry } from "./FeatureRegistry";
 import { Database } from "sqlite";
 
 /**
@@ -20,3 +21,7 @@ export class ChapterTeachingFeature extends Feature {
         return `${this._feature.how_to_teach}\n\nThis is a chapter teaching session. Focus on the overall concepts and connections between topics.`;
     }
 }
+
+// Register this feature class with the registry
+// This needs to be outside the class to avoid circular dependencies
+FeatureRegistry.registerFeatureClass('chapter teaching', ChapterTeachingFeature);

@@ -13,6 +13,8 @@ import sqlite3 from "sqlite3";
 import { generateAudio } from "./utils/generateAudio";
 import { Langfuse } from "langfuse";
 import { LearningProgressionHandler } from "./learning/LearningProgressionHandler";
+// Import features module to ensure all feature implementations are registered
+import './features';
 
 
 const langfuse = new Langfuse({
@@ -69,7 +71,7 @@ wss.on("connection", (ws) => {
           data.sessionId,
           Number(data.studentId),
           data.subjectId ? Number(data.subjectId) : undefined,
-          data.featureId ? Number(data.featureId) : undefined
+          data.featureName || undefined
         );
 
         // Initialize the session (loads student data, teacher persona and book features)
@@ -81,8 +83,8 @@ wss.on("connection", (ws) => {
         if (data.subjectId) {
           logMessage += `, studying subject ID ${data.subjectId}`;
         }
-        if (data.featureId) {
-          logMessage += `, studying feature ID ${data.featureId}`;
+        if (data.featureName) {
+          logMessage += `, studying feature: ${data.featureName}`;
         }
         console.log(logMessage);
         
