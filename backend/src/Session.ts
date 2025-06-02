@@ -1,4 +1,5 @@
 import { TeacherPersona, BookFeature as BookFeatureType, Subject } from "./types";
+import { Feature } from "./features/Feature";
 import { Database } from "sqlite";
 import { getScriptToWriteIn, loadTeacherPersona } from "./TeacherPersonaLoader";
 import { loadBookFeatures } from "./PedagogicalKnowledgeLoader";
@@ -14,7 +15,7 @@ export default class Session {
   grade?: string;
   bookIds?: number[];
   subjectStudying?: Subject;
-  featureStudying?: BookFeatureType | null;
+  featureStudying?: Feature | null;
   _messages: ChatCompletionMessageParam[];
 
   constructor({
@@ -69,7 +70,7 @@ ${Object.entries(
         .map(([subject, features]) => `${subject}\n - ${features.join("\n - ")}`)
         .join("\n\n")}
       
-${this.featureStudying?.how_to_teach ? `You are currently teaching ${this.featureStudying.name}. Follow these instructions: \n${this.featureStudying.how_to_teach}`
+${this.featureStudying ? `You are currently teaching ${this.featureStudying.name}. Follow these instructions: \n${this.featureStudying.getWhatToTeach()}`
         : "As a child shares what they want to learn, fetch the appropriate teaching methodology for that feature."}
 
 
@@ -142,9 +143,10 @@ write:
   }
 
   currentlyStudying(featureName: string) {
-    const feature = this._bookFeatures?.find(f => f.name === featureName);
-    if (feature) {
-      this.featureStudying = feature;
+    const featureData = this._bookFeatures?.find(f => f.name === featureName);
+    if (featureData) {
+      // Create the appropriate Feature instance using the factory method
+      this.featureStudying = Feature.createFeature(featureData);
       // When setting from a feature, we need to fetch the full subject details
       // We'll do this in the initialise method if featureId is provided
     } else {
@@ -212,19 +214,24 @@ write:
 
     // If featureId was provided, mark it as studying
     if (this.featureId) {
-      const featureData = await db.get('SELECT name, subject FROM book_features WHERE id = ?', this.featureId);
-      if (featureData) {
-        this.currentlyStudying(featureData.name);
+      const featureData = await db.get(
+        'SELECT * FROM book_features WHERE id = ?',
+        this.featureId
+      );
 
-        // Also set the subject for this feature if not already set
-        if (!this.subjectStudying && featureData.subject) {
-          const subjectData = await db.get(
-            'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE name = ?',
-            featureData.subject
-          );
-          if (subjectData) {
-            this.setSubjectStudying(subjectData);
-          }
+      if (featureData) {
+        // Create the appropriate Feature instance using the factory method
+        this.featureStudying = Feature.createFeature(featureData);
+      }
+
+      // Also set the subject for this feature if not already set
+      if (!this.subjectStudying && featureData.subject) {
+        const subjectData = await db.get(
+          'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE name = ?',
+          featureData.subject
+        );
+        if (subjectData) {
+          this.setSubjectStudying(subjectData);
         }
       }
     }
