@@ -100,12 +100,13 @@ wss.on("connection", (ws) => {
         (data.type === "message" || data.type === "photo")
       ) {
         const session = conversationManager.getSession(currentSessionId);
-        if (!session || !session.systemPrompt) {
+        const systemPrompt = await session?.getSystemPrompt();
+        if (!session || !systemPrompt) {
           throw new Error("Session not initialized properly");
         }
 
         const messages: ChatCompletionMessageParam[] = [
-          { role: "system", content: session.systemPrompt },
+          { role: "system", content: systemPrompt },
           ...(session.messages ?? []),
         ];
 

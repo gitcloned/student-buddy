@@ -1,5 +1,5 @@
 import { ChatCompletionMessageParam } from "openai/resources/chat";
-import Session from "./Session";
+import { Session } from "./Session";
 
 class ConversationManager {
   private static instance: ConversationManager;
