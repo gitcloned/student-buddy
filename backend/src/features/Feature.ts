@@ -1,4 +1,7 @@
+import { Session } from "../Session";
 import { BookFeature as BookFeatureType } from "../types";
+import { ChapterTeachingFeature } from "./ChapterTeachingFeature";
+import { Database } from "sqlite";
 
 /**
  * Base Feature class that defines the interface for all feature types
@@ -34,7 +37,7 @@ export abstract class Feature {
    * Returns the teaching instructions for this feature
    * This method can be overridden by subclasses to provide custom teaching instructions
    */
-  getWhatToTeach(): string {
+  async getWhatToTeach(session: Session, db: Database): Promise<string> {
     return this._feature.how_to_teach;
   }
 
@@ -61,22 +64,4 @@ export class DefaultFeature extends Feature {
   }
 
   // Uses the default implementation from the base class
-}
-
-/**
- * Chapter teaching feature that provides custom teaching behavior
- */
-export class ChapterTeachingFeature extends Feature {
-  constructor(feature: BookFeatureType) {
-    super(feature);
-  }
-
-  /**
-   * Override the getWhatToTeach method to provide chapter-specific teaching instructions
-   */
-  override getWhatToTeach(): string {
-    // Custom implementation for chapter teaching
-    // This could include additional context or modified instructions
-    return `${this._feature.how_to_teach}\n\nThis is a chapter teaching session. Focus on the overall concepts and connections between topics.`;
-  }
 }

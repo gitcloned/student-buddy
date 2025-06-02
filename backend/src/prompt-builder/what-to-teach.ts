@@ -1,16 +1,19 @@
 import { Session } from "../Session";
+import { Database } from "sqlite";
 
 /**
  * Builds the what to teach section of the prompt
  */
-export function buildWhatToTeach(session: Session): string {
+export async function buildWhatToTeach(session: Session, db: Database): Promise<string> {
   const featuresContent = buildFeaturesContent(session);
-  const currentFeatureContent = buildCurrentFeatureContent(session);
+  const currentFeatureContent = await buildCurrentFeatureContent(session, db);
 
   return `What to teach:
 ----
-You will teach the following book and their features:
+You can teach the following book and their features:
 ${featuresContent}
+
+As a child shares what they want to learn, fetch the appropriate teaching methodology for that feature.
       
 ${currentFeatureContent}`;
 }
@@ -39,8 +42,10 @@ function buildFeaturesContent(session: Session): string {
 /**
  * Builds the current feature content for the what to teach section
  */
-function buildCurrentFeatureContent(session: Session): string {
+async function buildCurrentFeatureContent(session: Session, db: Database): Promise<string> {
   return session.featureStudying
-    ? `You are currently teaching ${session.featureStudying.name}. Follow these instructions: \n${session.featureStudying.getWhatToTeach()}`
-    : "As a child shares what they want to learn, fetch the appropriate teaching methodology for that feature.";
+    ? `You are currently teaching ${session.featureStudying.name}.
+
+${session.featureStudying.getWhatToTeach(session, db)}`
+    : "";
 }

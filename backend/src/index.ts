@@ -100,7 +100,7 @@ wss.on("connection", (ws) => {
         (data.type === "message" || data.type === "photo")
       ) {
         const session = conversationManager.getSession(currentSessionId);
-        const systemPrompt = await session?.getSystemPrompt();
+        const systemPrompt = await session?.getSystemPrompt(db);
         if (!session || !systemPrompt) {
           throw new Error("Session not initialized properly");
         }

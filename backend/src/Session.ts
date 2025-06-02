@@ -18,6 +18,7 @@ export class Session {
   subjectStudying?: Subject;
   featureStudying?: Feature | null;
   _messages: ChatCompletionMessageParam[];
+  studentName: string | undefined;
 
   constructor({
     sessionId,
@@ -49,9 +50,9 @@ export class Session {
     return this._messages;
   }
 
-  async getSystemPrompt(): Promise<string> {
+  async getSystemPrompt(db: Database): Promise<string> {
     const promptBuilder = PromptBuilder.getInstance();
-    return await promptBuilder.buildSystemPrompt(this);
+    return await promptBuilder.buildSystemPrompt(this, db);
   }
 
   get featureMap(): string[] {
@@ -69,10 +70,7 @@ export class Session {
   currentlyStudying(featureName: string) {
     const featureData = this._bookFeatures?.find(f => f.name === featureName);
     if (featureData) {
-      // Create the appropriate Feature instance using the factory method
       this.featureStudying = Feature.createFeature(featureData);
-      // When setting from a feature, we need to fetch the full subject details
-      // We'll do this in the initialise method if featureId is provided
     } else {
       this.featureStudying = null;
     }
@@ -94,6 +92,7 @@ export class Session {
     }
 
     this.grade = studentData.grade;
+    this.studentName = studentData.name;
 
     // Fetch books for the student's grade
     // Step 1: Get the grade_id for the child
