@@ -205,6 +205,11 @@ function collectMultilineContent(lines: string[], startIndex: number, initialVal
       continue;
     }
     
+    // Stop if we hit YAML boundary markers
+    if (trimmed === '---' || trimmed === '...') {
+      break;
+    }
+    
     // Stop if we hit a key-value line
     if (isKeyValueLine(line)) {
       break;
@@ -227,12 +232,28 @@ export default function parseResponse(text: string): ParsedResponse {
   // Clean and normalize input
   let cleanedText = cleanText(text);
   
-  // Remove YAML markers
-  if (cleanedText.startsWith("---")) {
-    cleanedText = cleanedText
-      .replace(/^---\s*\n?/, "")
-      .replace(/\n?---\s*$/, "")
-      .trim();
+  // Remove YAML markers and extract content between them
+  const lines = cleanedText.split('\n');
+  let yamlStartIndex = -1;
+  let yamlEndIndex = -1;
+  
+  // Find YAML boundaries
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed === '---') {
+      if (yamlStartIndex === -1) {
+        yamlStartIndex = i;
+      } else {
+        yamlEndIndex = i;
+        break;
+      }
+    }
+  }
+  
+  // Extract only the YAML content
+  if (yamlStartIndex !== -1) {
+    const endIndex = yamlEndIndex !== -1 ? yamlEndIndex : lines.length;
+    cleanedText = lines.slice(yamlStartIndex + 1, endIndex).join('\n').trim();
   }
 
   // Strategy 1: Try standard YAML parsing
