@@ -6,6 +6,7 @@ import background from "../assets/classroom-background-2.jpg";
 import dropSound from "../assets/drop_sound.mp3";
 import CameraComponent from "./CameraComponent";
 import Chalkboard from "./Chalkboard";
+import QuizModal from "./QuizModal";
 import Session from "../models/Session";
 import { generateGreeting } from "../utils/generateGreeting";
 
@@ -19,6 +20,9 @@ const HomePage = ({ studentId, subjectId, childData, subjectData, featureName: p
   const [chalkboardLines, setChalkboardLines] = useState([]);
   const [session, setSession] = useState(null);
   const [isWaitingForReply, setIsWaitingForReply] = useState(false);
+  const [currentQuiz, setCurrentQuiz] = useState(null);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [activeQuizIndex, setActiveQuizIndex] = useState(null);
   const chatContainerRef = useRef(null);
   const audioRef = useRef(new Audio(dropSound));
   const audioPlayerRef = useRef(null);
@@ -129,6 +133,22 @@ const HomePage = ({ studentId, subjectId, childData, subjectData, featureName: p
               if (!data.audio) speakText(data.speak, ws);
               setShowCamera(true);
             }
+          } else if (data.type === "quiz") {
+            setIsWaitingForReply(false);
+            // Add quiz message to chat and display modal
+            const quizMessage = { 
+              type: "mascot", 
+              text: data.speak, 
+              isQuiz: true,
+              quiz: data.quiz
+            };
+            setMessages((prev) => [...prev, quizMessage]);
+            if (!data.audio && data.speak) speakText(data.speak, ws);
+            
+            // Set current quiz and show modal
+            setCurrentQuiz(data.quiz);
+            setShowQuizModal(true);
+            setActiveQuizIndex(null); // New quiz from bot, not from history
           } else if (data.type === "error") {
             setIsWaitingForReply(false);
             console.error("Error:", data.message);
@@ -179,7 +199,8 @@ const HomePage = ({ studentId, subjectId, childData, subjectData, featureName: p
           }
 
           // Chalkboard: accumulate lines
-          if (data.write) {
+          // Skip writing to chalkboard if we're showing a quiz
+          if (data.write && (!data.type || data.type !== "quiz")) {
             // Helper functions for randomization
             const getRandomOffset = () => Math.floor(Math.random() * 6) - 2; // Random value between -2 and 4
             const getRandomFontSize = (baseFontSize = 22) => {
@@ -350,6 +371,21 @@ const HomePage = ({ studentId, subjectId, childData, subjectData, featureName: p
                           }`}
                       >
                         {message.text}
+                        {message.isQuiz && (
+                          <div 
+                            className="flex items-center mt-2 p-2 bg-[#244d2b] text-white rounded-md cursor-pointer hover:bg-[#1a3a20] transition-colors"
+                            onClick={() => {
+                              setCurrentQuiz(message.quiz);
+                              setShowQuizModal(true);
+                              setActiveQuizIndex(index);
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            Quiz
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -410,7 +446,43 @@ const HomePage = ({ studentId, subjectId, childData, subjectData, featureName: p
               )}
             </div>
             
-            <div className="absolute bottom-4 right-4 flex items-center gap-2">
+            {showQuizModal && currentQuiz && (
+            <QuizModal 
+              quiz={currentQuiz} 
+              onSubmit={(quizAnswer) => {
+                // Close the modal
+                setShowQuizModal(false);
+                
+                // Don't send message if we're viewing a quiz from history
+                if (activeQuizIndex !== null) return;
+                
+                // Add user's answer to messages
+                const answerText = quizAnswer.quizType === 'MCQ' 
+                  ? `I chose ${quizAnswer.userAnswerLetter}: ${quizAnswer.userAnswer}` 
+                  : `My answer: ${quizAnswer.userAnswer}`;
+                
+                setMessages(prev => [
+                  ...prev, 
+                  { type: "user", text: answerText }
+                ]);
+                
+                // Send answer to backend
+                if (socket) {
+                  socket.send(JSON.stringify({
+                    type: "message",
+                    sessionId: session.sessionId,
+                    text: answerText,
+                    quizAnswer: quizAnswer
+                  }));
+                  setIsWaitingForReply(true);
+                }
+              }}
+              onClose={() => setShowQuizModal(false)}
+              readOnly={activeQuizIndex !== null} // Read-only if viewing from history
+            />
+          )}
+          
+          <div className="absolute bottom-4 right-4 flex items-center gap-2">
               <div className="flex items-center gap-2 mt-4">
                 <input
                   type="text"
