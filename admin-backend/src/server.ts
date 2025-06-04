@@ -1134,12 +1134,12 @@ app.delete("/api/topics/:id", async (req: Request, res: Response) => {
 
   try {
     // Check if topic is being used by any relationships before deleting
-    const prerequisitesCount = await db.get("SELECT COUNT(*) as count FROM topic_prerequisites WHERE topic_id = ? OR prerequisite_topic_id = ?", [id, id]);
+    const prerequisitesCount = await db.get("SELECT COUNT(*) as count FROM topic_prerequisites WHERE prerequisite_topic_id = ?", [id, id]);
     const lessonPlansCount = await db.get("SELECT COUNT(*) as count FROM lesson_plans WHERE topic_id = ?", id);
-    const learningLevelsCount = await db.get("SELECT COUNT(*) as count FROM learning_levels WHERE topic_id = ?", id);
+    const learningIndicatorsCount = await db.get("SELECT COUNT(*) as count FROM learning_indicators WHERE topic_id = ?", id);
 
-    if (prerequisitesCount.count > 0 || lessonPlansCount.count > 0 || learningLevelsCount.count > 0) {
-      res.status(400).json({ error: "Cannot delete topic as it is referenced by prerequisites, lesson plans, or learning levels" });
+    if (prerequisitesCount.count > 0 || lessonPlansCount.count > 0 || learningIndicatorsCount.count > 0) {
+      res.status(400).json({ error: "Cannot delete topic as it is referenced by prerequisites, lesson plans, or learning indicators" });
       return;
     }
 

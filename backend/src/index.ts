@@ -71,7 +71,8 @@ wss.on("connection", (ws) => {
           data.sessionId,
           Number(data.studentId),
           data.subjectId ? Number(data.subjectId) : undefined,
-          data.featureName || undefined
+          data.featureName || undefined,
+          data.chapterId ? Number(data.chapterId) : undefined
         );
 
         // Initialize the session (loads student data, teacher persona and book features)
@@ -82,6 +83,9 @@ wss.on("connection", (ws) => {
         let logMessage = `Created session ${data.sessionId} for student ID ${data.studentId}`;
         if (data.subjectId) {
           logMessage += `, studying subject ID ${data.subjectId}`;
+        }
+        if (data.chapterId) {
+          logMessage += `, studying chapter ID ${data.chapterId}`;
         }
         if (data.featureName) {
           logMessage += `, studying feature: ${data.featureName}`;
@@ -226,7 +230,9 @@ wss.on("connection", (ws) => {
             speak: parsedResponse.speak,
             write: parsedResponse.write,
             action: parsedResponse.action,
-            audio: await generateAudio(parsedResponse.speak || "")
+            audio: await generateAudio(parsedResponse.speak || ""),
+            quiz: parsedResponse.quiz,
+            play: parsedResponse.play,
           })
         );
       }

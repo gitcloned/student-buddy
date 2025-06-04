@@ -55,8 +55,17 @@ const HomePage = ({ studentId, subjectId, childData, subjectData, featureName: p
     }
     
     // If subject has a selected chapter (from Chapter Teaching feature)
-    if (subjectData && subjectData.selectedChapter) {
-      setChapterId(subjectData.selectedChapter.id);
+    if (subjectData) {
+      // Check for direct chapterId property first (added for clarity)
+      if (subjectData.chapterId) {
+        setChapterId(subjectData.chapterId);
+        console.log(`Using direct chapterId: ${subjectData.chapterId}`);
+      } 
+      // Fall back to selectedChapter.id if available
+      else if (subjectData.selectedChapter) {
+        setChapterId(subjectData.selectedChapter.id);
+        console.log(`Using selectedChapter.id: ${subjectData.selectedChapter.id}`);
+      }
     }
   }, [propFeatureName, subjectData]);
 
@@ -65,7 +74,8 @@ const HomePage = ({ studentId, subjectId, childData, subjectData, featureName: p
     hasInitialized.current = true;
     async function initializeSession() {
       try {
-        const createdSession = await Session.create(studentId, subjectId, featureName, chapterId);
+        debugger;;
+        const createdSession = await Session.create(studentId, subjectId, featureName, subjectData?.chapterId);
         setSession(createdSession);
         const ws = new WebSocket("ws://localhost:8000");
         setSocket(ws);

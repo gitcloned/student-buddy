@@ -27,6 +27,8 @@ function parseResponse(text) {
             speak: parsed.speak,
             action: parsed.action,
             write: parsed.write,
+            quiz: parsed.quiz,
+            play: parsed.play,
         };
     }
     catch (e) {

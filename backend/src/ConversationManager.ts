@@ -20,13 +20,15 @@ class ConversationManager {
     sessionId: string, 
     studentId: number,
     subjectId?: number, 
-    featureName?: string
+    featureName?: string,
+    chapterId?: number
   ): void {
     this.sessions.set(sessionId, new Session({
       sessionId,
       studentId,
       subjectId,
-      featureName
+      featureName,
+      chapterId
     }));
   }
 

@@ -44,8 +44,8 @@ function buildFeaturesContent(session: Session): string {
  */
 async function buildCurrentFeatureContent(session: Session, db: Database): Promise<string> {
   return session.featureStudying
-    ? `You are currently teaching ${session.featureStudying.name}.
+    ? `From above features you are currently teaching: "${session.featureStudying.name}".
 
-${session.featureStudying.getWhatToTeach(session, db)}`
+${await session.featureStudying.getWhatToTeach(session, db)}`
     : "";
 }

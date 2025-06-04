@@ -41,11 +41,16 @@ const SubjectSelectionScreen = ({ selectedChild, onSelectSubject, gradeId, featu
   
   // Handle chapter selection
   const handleChapterSelect = (chapter) => {
+    console.log(`Selected chapter ID: ${chapter.id}`);
+    
     // Add chapter to the subject and pass it up
     const subjectWithChapter = {
       ...selectedSubjectForChapters,
-      selectedChapter: chapter
+      selectedChapter: chapter,
+      // Also add chapterId directly for easier access
+      chapterId: chapter.id
     };
+    
     onSelectSubject(subjectWithChapter);
   };
   

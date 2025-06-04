@@ -13,9 +13,9 @@ const LessonPlanForm: React.FC = () => {
   
   // Define learning levels for dropdown
   const learningLevels = [
-    { value: 'Weak', label: 'Weak' },
-    { value: 'Average', label: 'Average' },
-    { value: 'Strong', label: 'Strong' }
+    { value: '1', label: 'Weak' },
+    { value: '2', label: 'Average' },
+    { value: '3', label: 'Strong' }
   ];
   const [formValues, setFormValues] = useState<{ 
     title: string; 

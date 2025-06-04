@@ -137,6 +137,13 @@ function App() {
       
       if (selectedSubject) {
         params.set('subjectId', selectedSubject.id);
+        
+        // Include chapterId in URL if available (for Chapter Teaching feature)
+        if (selectedSubject.chapterId) {
+          params.set('chapterId', selectedSubject.chapterId);
+        } else if (selectedSubject.selectedChapter) {
+          params.set('chapterId', selectedSubject.selectedChapter.id);
+        }
       }
       
       // Include featureName if it exists
