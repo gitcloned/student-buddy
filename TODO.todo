@@ -36,13 +36,53 @@ Usecases:
         ☐ Should write steps in detail, the way child have been taught - this is teaching pedagoy of that LO
 
 Chalkboard:
-    ☐ Prompt should understand well what to use chalkboard for. Right now it misses a lot of times
+    ✔ Prompt should understand well what to use chalkboard for. Right now it misses a lot of times @done(25-05-30 12:45)
     ☐ Should pick random places to write
     ☐ Increase font a bit and slow down writing a bit
 
 Teacher:
-    ☐ Separate teacherPersona as teachers and teacherStyle
+    ☐ Separate teacherPersona as teachers and teacherStyle @started(25-05-29 11:07)
         ✔ Add persona prompts, https://chat.deepseek.com/a/chat/s/74270562-92c7-4316-96ca-a91d73360fd7 and pick from langfuse @started(25-04-28 00:04) @done(25-04-28 00:04) @lasted(19s)
         ☐ Pick voice as per the teacher persona
         ☐ Pick avatar as per the teacher persona
         ✔ If text is also in hindi, then it works better @started(25-04-28 00:04) @done(25-04-28 00:04) @lasted(15s)
+
+Mangaon pilot:
+    ✔ Use topic as learning outcome @started(25-05-29 11:07) @done(25-05-29 11:07) @lasted(13s)
+    ✔ Introduce an entity as learning indicator @started(25-05-29 10:59) @done(25-05-29 11:05) @lasted(6m21s)
+        ✔ Learning indicator should have asessing questions @started(25-05-29 11:05) @done(25-05-29 11:05) @lasted(23s)
+    ☐ Introduce an entity as Homework. Each LO can have homework. Homework is nothing but series of questions
+    ✔ Learning level should also be against the learning indicator, and should have state as well as: null, assessing, teaching, taught @started(25-05-29 11:16) @done(25-05-29 11:52) @lasted(36m15s)
+    ✔ In LearningIndicator also add an attribute as CommonMisconception, which is a common mistake children do as a textarea @started(25-05-29 12:10) @done(25-05-29 12:14) @lasted(4m8s)
+    ☐ Upload content for first 2 pages
+    ✔ APIs @done(25-05-30 12:02)
+        ✔ API to change the stage of learning @done(25-05-30 12:02)
+        ✔ API to fetch the stage of learning @started(25-05-29 15:06) @done(25-05-30 12:02) @lasted(20h56m28s)
+    ☐ Modify the prompt skeleton and prompt picking @started(25-05-30 12:44)
+        ✔ Map book to subject @started(25-05-30 13:03) @done(25-05-30 13:48) @lasted(45m5s)
+        ✔ Map teacher to subject @started(25-05-30 13:03) @done(25-05-30 13:48) @lasted(45m6s)
+        ☐ UI
+            ☐ Child picker -> when child is not selected (support query param)
+            ☐ Subject picker -> when subject is not specified (support query param)
+            ☐ AI tutor -> provided above (then it tries to pick which feature to teach)
+            ☐ Default feature as chapters (support query param)
+        ☐ How to teach
+            ☐ Features to be a class and override on how to teach
+            ☐ Chapter feature to include the plan for today and learning level
+    ☐ Script should be written in Hindi
+        ☐ To see if we should skip writing chat if something is written as part of chalkboard
+    ☐ Need to have support of dev/prod databases
+    ☐ PROD deployment as a web service [Thejas]
+    ☐ Student app integration [Prasanth]
+        ☐ Fetch student details in API endpoint
+            ☐ Use said as id in child table, and read info
+    ☐ Integrate langfuse
+    ☐ Chalkboard improvements
+        ☐ Handle highlight on chalkboard
+        ☐ Reduce the speed of writing
+        ☐ Chalkboard moves up when stage changes with # link to jump
+
+Mangaon pilot (P1):
+    ☐ Clean dashboard left menu
+    ☐ Integrate MS Clarity
+    

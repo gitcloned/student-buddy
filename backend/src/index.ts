@@ -12,6 +12,10 @@ import { Database, open } from "sqlite";
 import sqlite3 from "sqlite3";
 import { generateAudio } from "./utils/generateAudio";
 import { Langfuse } from "langfuse";
+import { LearningProgressionHandler } from "./learning/LearningProgressionHandler";
+// Import features module to ensure all feature implementations are registered
+import './features';
+
 
 const langfuse = new Langfuse({
   publicKey: process.env.LANGFUSE_PUBLIC_KEY,
@@ -30,27 +34,6 @@ async function initializeDatabase() {
     filename: process.env.DATABASE_FILEPATH || "./admin_database.sqlite",
     driver: sqlite3.Database,
   });
-
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS teacher_personas (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      grade TEXT NOT NULL,
-      persona TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS books (
-      id INTEGER PRIMARY KEY AUTOINCREMENT
-    );
-
-    CREATE TABLE IF NOT EXISTS book_features (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      book_id INTEGER,
-      subject TEXT NOT NULL,
-      name TEXT NOT NULL,
-      how_to_teach TEXT NOT NULL,
-      FOREIGN KEY (book_id) REFERENCES books(id)
-    );
-  `);
 }
 
 const server = http.createServer((req, res) => {
@@ -66,6 +49,9 @@ const openai = new OpenAI({
 const conversationManager = ConversationManager.getInstance();
 
 wss.on("connection", (ws) => {
+  // Register the learning progression handler for this connection
+  LearningProgressionHandler.registerHandlers(ws, db);
+  
   let currentSessionId: string | null = null;
 
   ws.on("message", async (message) => {
@@ -74,17 +60,38 @@ wss.on("connection", (ws) => {
 
       if (data.type === "session") {
         currentSessionId = data.sessionId;
+        
+        // Validate required studentId
+        if (!data.studentId) {
+          throw new Error("studentId is required for session creation");
+        }
+        
+        // Create session based on provided parameters
         conversationManager.createSession(
           data.sessionId,
-          data.grade,
-          data.bookIds
+          Number(data.studentId),
+          data.subjectId ? Number(data.subjectId) : undefined,
+          data.featureName || undefined,
+          data.chapterId ? Number(data.chapterId) : undefined
         );
 
-        await conversationManager.getSession(data.sessionId)?.initialise(db);
+        // Initialize the session (loads student data, teacher persona and book features)
+        const session = await conversationManager.getSession(data.sessionId);
+        await session?.initialise(db);
 
-        console.log(
-          `Created session ${data.sessionId} for grade "${data.grade}" child and bookIds ${data.bookIds}`
-        );
+        // Log session creation with appropriate details
+        let logMessage = `Created session ${data.sessionId} for student ID ${data.studentId}`;
+        if (data.subjectId) {
+          logMessage += `, studying subject ID ${data.subjectId}`;
+        }
+        if (data.chapterId) {
+          logMessage += `, studying chapter ID ${data.chapterId}`;
+        }
+        if (data.featureName) {
+          logMessage += `, studying feature: ${data.featureName}`;
+        }
+        console.log(logMessage);
+        
         ws.send(JSON.stringify({ type: "session-created", session: conversationManager.getSession(data.sessionId) }));
         return;
       }
@@ -99,12 +106,13 @@ wss.on("connection", (ws) => {
         (data.type === "message" || data.type === "photo")
       ) {
         const session = conversationManager.getSession(currentSessionId);
-        if (!session || !session.systemPrompt) {
+        const systemPrompt = await session?.getSystemPrompt(db);
+        if (!session || !systemPrompt) {
           throw new Error("Session not initialized properly");
         }
 
         const messages: ChatCompletionMessageParam[] = [
-          { role: "system", content: session.systemPrompt },
+          { role: "system", content: systemPrompt },
           ...(session.messages ?? []),
         ];
 
@@ -222,7 +230,9 @@ wss.on("connection", (ws) => {
             speak: parsedResponse.speak,
             write: parsedResponse.write,
             action: parsedResponse.action,
-            audio: await generateAudio(parsedResponse.speak || "")
+            audio: await generateAudio(parsedResponse.speak || ""),
+            quiz: parsedResponse.quiz,
+            play: parsedResponse.play,
           })
         );
       }

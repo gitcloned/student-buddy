@@ -27,23 +27,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 to="/"
                 className={`block px-4 py-2 hover:bg-primary-dark ${isActive('/')}`}
               >
-                Dashboard
+                All entities
               </Link>
             </li>
             <li>
               <Link
-                to="/personas"
-                className={`block px-4 py-2 hover:bg-primary-dark ${isActive('/personas')}`}
+                to="/learning-progression"
+                className={`block px-4 py-2 hover:bg-primary-dark ${isActive('/learning-progression')}`}
               >
-                Teacher Personas
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/books"
-                className={`block px-4 py-2 hover:bg-primary-dark ${isActive('/books')}`}
-              >
-                Books & Features
+                Learning progression
               </Link>
             </li>
           </ul>

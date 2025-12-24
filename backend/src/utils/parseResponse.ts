@@ -1,11 +1,22 @@
 import * as yaml from "js-yaml";
 
-export default function parseResponse(text: string): {
+export interface QuizContent {
+  type: "MCQ" | "FITB";
+  step: string;
+  correct: string;
+  options: string[];
+}
+
+export interface ParsedResponse {
   type: string;
   speak?: string;
   action?: string;
   write?: string;
-} {
+  quiz?: QuizContent;
+  play?: string;
+}
+
+export default function parseResponse(text: string): ParsedResponse {
   console.log(`Raw GPT response: "${text}"`);
 
   // Trim whitespace and newlines
@@ -28,6 +39,8 @@ export default function parseResponse(text: string): {
       speak?: string;
       action?: string;
       write?: string;
+      quiz?: QuizContent;
+      play?: string;
     };
     console.log(`Parsed YAML:`, parsed);
 
@@ -40,6 +53,8 @@ export default function parseResponse(text: string): {
       speak: parsed.speak,
       action: parsed.action,
       write: parsed.write,
+      quiz: parsed.quiz,
+      play: parsed.play,
     };
   } catch (e) {
     console.error(`YAML parsing failed: ${e}`);
@@ -49,6 +64,10 @@ export default function parseResponse(text: string): {
     let speak = "";
     let action = "";
     let write = "";
+    let quiz: QuizContent | undefined;
+    let play = "";
+    let inQuizBlock = false;
+    let quizContent: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -56,7 +75,7 @@ export default function parseResponse(text: string): {
       if (/^type:/i.test(line)) {
         type = line.replace(/type:/i, "").trim();
       } else if (/^speak:/i.test(line)) {
-        // Capture everything after "text:" on the SAME line first
+        // Capture everything after "speak:" on the SAME line first
         let currentText = line.replace(/speak:/i, "").trim();
         const textLines: string[] = currentText ? [currentText] : [];
 
@@ -65,7 +84,7 @@ export default function parseResponse(text: string): {
         for (; j < lines.length; j++) {
           const nextLine = lines[j];
           const trimmedNext = nextLine.trim();
-          if (/^(action|write|type):/i.test(trimmedNext)) {
+          if (/^(action|write|type|quiz|play):/i.test(trimmedNext)) {
             break; // stop collecting text
           }
           textLines.push(nextLine.replace(/^\s+/, "")); // Preserve original spacing within the line
@@ -76,19 +95,48 @@ export default function parseResponse(text: string): {
         action = line.replace(/action:/i, "").trim();
       } else if (/^write:/i.test(line)) {
         write = line.replace(/write:/i, "").trim();
+      } else if (/^play:/i.test(line)) {
+        play = line.replace(/play:/i, "").trim();
+      } else if (/^quiz:/i.test(line) || inQuizBlock) {
+        if (!inQuizBlock) {
+          inQuizBlock = true;
+          continue;
+        }
+        
+        // Collect all lines in the quiz block
+        quizContent.push(line);
+        
+        // Check if we've reached the end of the quiz block
+        if (i === lines.length - 1 || 
+            (i < lines.length - 1 && /^(type|speak|action|write|play):/i.test(lines[i + 1].trim()))) {
+          inQuizBlock = false;
+          
+          // Try to parse the collected quiz content
+          try {
+            const quizYaml = quizContent.join("\n");
+            const parsedQuiz = yaml.load(quizYaml) as QuizContent;
+            quiz = parsedQuiz;
+          } catch (quizErr) {
+            console.error(`Failed to parse quiz content: ${quizErr}`);
+          }
+          
+          quizContent = [];
+        }
       }
     }
 
     // If no text was found, use the entire input as text (minus known key lines)
-    if (!speak && !action && !write) {
+    if (!speak && !action && !write && !quiz && !play) {
       speak = yamlText.trim();
     }
 
     return {
       type,
-      speak: speak || undefined,
+      speak: speak || undefined,  
       action: action || undefined,
       write: write || undefined,
+      quiz,
+      play: play || undefined,
     };
   }
 }

@@ -1,31 +1,48 @@
-import { TeacherPersona, BookFeature as BookFeatureType } from "./types";
+import { TeacherPersona, BookFeature as BookFeatureType, Subject, Chapter } from "./types";
+import { Feature } from "./features/Feature";
 import { Database } from "sqlite";
-import { getScriptToWriteIn, loadTeacherPersona } from "./TeacherPersonaLoader";
+import { loadTeacherPersona } from "./TeacherPersonaLoader";
 import { loadBookFeatures } from "./PedagogicalKnowledgeLoader";
 import { ChatCompletionMessageParam } from "openai/resources/chat";
+import { PromptBuilder } from "./prompt-builder";
 
-export default class Session {
+import { ChapterTeachingFeature } from "./features/ChapterTeachingFeature";
+
+export class Session {
   _teacherPersona: TeacherPersona | undefined;
   _bookFeatures: BookFeatureType[] | undefined;
   sessionId: string;
-  grade: string;
-  bookIds: number[];
-  featureStudying?: BookFeatureType | null;
+  studentId: number;
+  subjectId?: number;
+  featureName?: string;
+  chapterId?: number;
+  grade?: string;
+  bookIds?: number[];
+  subjectStudying?: Subject;
+  chapterStudying?: Chapter;
+  featureStudying?: Feature | null;
   _messages: ChatCompletionMessageParam[];
+  studentName: string | undefined;
 
   constructor({
     sessionId,
-    grade,
-    bookIds,
+    studentId,
+    subjectId,
+    chapterId,
+    featureName,
   }: {
     sessionId: string;
-    grade: string;
-    bookIds: number[]
+    studentId: number;
+    subjectId?: number;
+    chapterId?: number;
+    featureName?: string;
   }) {
     this.sessionId = sessionId;
-    this.grade = grade;
-    this.bookIds = bookIds;
-    this._messages = []
+    this.studentId = studentId;
+    this.subjectId = subjectId;
+    this.featureName = featureName;
+    this.chapterId = chapterId;
+    this._messages = [];
   }
 
   get teacherPersona(): TeacherPersona | undefined {
@@ -40,86 +57,9 @@ export default class Session {
     return this._messages;
   }
 
-  get systemPrompt() {
-    return `You are a teacher for ${this.grade} students.
-
-Your teaching style:
-----
-${this.teacherPersona?.persona}
-
-
-What to teach:
-----
-You will teach the following book and their features:
-${Object.entries(
-      this.bookFeatures?.reduce((acc, { name, subject }) => {
-        if (!acc[subject]) acc[subject] = [];
-        acc[subject].push(name);
-        return acc;
-      }, {} as Record<string, string[]>)
-      ?? {} // <--- this ensures that if reduce returns undefined, we use an empty object
-    )
-        .map(([subject, features]) => `${subject}\n - ${features.join("\n - ")}`)
-        .join("\n\n")}
-      
-${this.featureStudying?.how_to_teach ? `You are currently teaching ${this.featureStudying.name}. Follow these instructions: \n${this.featureStudying.how_to_teach}`
-        : "As a child shares what they want to learn, fetch the appropriate teaching methodology for that feature."}
-
-
-Classroom setup:
-----
-While you can speak, you can also take photo to see what the child is doing or asking. For that pass action as "take_photo"
-The classroom setup contains a chalkboard to write on, which you can also use to explain or ask while teaching. 
-
-Generally teacher does not always write on chalkboard which she is speaking but only things which students have to refer to after your speaking, ex:
- - Some equation
- - Steps
- - Rhyme from chapter
- - Drawing
- 
-
-Reply format
-----
-You should always reply back in YAML format only and nothing else. YAML reply can contain below attributes:
-
-type: what type of reply this is, text, action
-speak: text to speak
-action: action to perform (take_photo)
-write: what to write on chalkboard
-draw: anything to draw as well
-
-${getScriptToWriteIn(this.teacherPersona?.language ?? 'english')}
-
-If writing in latex, use below explicit wrappers
-
-'''
-\(...\)     For inline math (recommended)
-$$...$$     For display/block math (recommended)
-\[...\]     Alternative display math
-$...$       Simple inline (use cautiously)
-'''
-
-Replies can be of below types:
-
-- Speak reply
----
-type: text
-speak: How are you?
-write: 
-
-- Speak and write reply
----
-type: text
-speak: Solve 5x + 4 = 12
-write: 5x + 4 = 12
-
-- Take photo
----
-type: action
-action: take_photo
-speak: Take a photo of speaking corner
-write: 
-`
+  async getSystemPrompt(db: Database): Promise<string> {
+    const promptBuilder = PromptBuilder.getInstance();
+    return await promptBuilder.buildSystemPrompt(this, db);
   }
 
   get featureMap(): string[] {
@@ -135,11 +75,123 @@ write:
   }
 
   currentlyStudying(featureName: string) {
-    this.featureStudying = this._bookFeatures?.find(f => f.name === featureName) ?? null;
+    const featureData = this._bookFeatures?.find(f => f.name === featureName);
+    if (featureData) {
+      this.featureStudying = Feature.createFeature(featureData);
+    } else {
+      this.featureStudying = null;
+    }
+  }
+
+  setSubjectStudying(subject: Subject) {
+    this.subjectStudying = subject;
+  }
+
+  setChapterStudying(chapter: Chapter) {
+    this.chapterId = chapter.id;
+    this.chapterStudying = chapter;
   }
 
   async initialise(db: Database): Promise<void> {
+    // Fetch student's grade based on studentId
+    const studentData = await db.get(
+      'SELECT c.id, g.name as grade FROM children c JOIN grades g ON c.grade_id = g.id WHERE c.id = ?',
+      this.studentId
+    );
+
+    if (!studentData) {
+      throw new Error(`Student with ID ${this.studentId} not found`);
+    }
+
+    this.grade = studentData.grade;
+    this.studentName = studentData.name;
+
+    // Fetch books for the student's grade
+    // Step 1: Get the grade_id for the child
+    const gradeRow = await db.get(
+      `SELECT grade_id FROM children WHERE id = ?`,
+      this.studentId
+    );
+    const gradeId = gradeRow?.grade_id;
+
+    // Step 2: Get all book_ids for subjects with that grade_id
+    const bookIdsData = await db.all(
+      `SELECT book_id FROM subjects WHERE grade_id = ? AND book_id IS NOT NULL`,
+      gradeId
+    );
+    const bookIds = bookIdsData.map(row => row.book_id);
+
+    // Step 3: Fetch all books with those IDs (if any)
+    let booksData = [];
+    if (bookIds.length > 0) {
+      booksData = await db.all(
+        `SELECT id FROM books WHERE id IN (${bookIds.map(() => '?').join(',')})`,
+        ...bookIds
+      );
+    }
+
+    this.bookIds = booksData.map(book => book.id);
+
+    // If subjectId was provided, mark it as studying
+    if (this.subjectId) {
+      const subjectData = await db.get(
+        'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE id = ?',
+        this.subjectId
+      );
+      if (subjectData) {
+        this.setSubjectStudying(subjectData);
+      }
+    }
+
+    // If chapterId was provided, fetch the complete chapter data
+    if (this.chapterId) {
+      const chapterData = await db.get(
+        'SELECT id, name, subject_id FROM chapters WHERE id = ?',
+        this.chapterId
+      );
+      if (chapterData) {
+        this.setChapterStudying(chapterData);
+        
+        // If subject is not set yet, set it based on the chapter's subject_id
+        if (!this.subjectStudying && chapterData.subject_id) {
+          const subjectData = await db.get(
+            'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE id = ?',
+            chapterData.subject_id
+          );
+          if (subjectData) {
+            this.setSubjectStudying(subjectData);
+          }
+        }
+      }
+    }
+
+    // Load teacher persona and book features
     this.teacherPersona = await loadTeacherPersona(this.sessionId, db);
     this.bookFeatures = await loadBookFeatures(this.sessionId, db);
+
+    // If featureName and subjectId were provided, mark it as studying
+    if (this.featureName) {
+      // Get feature by book_id and feature_name
+      const featureData = await db.get(
+        `SELECT * FROM book_features WHERE book_id IN (${this.bookIds.map(() => '?').join(',')}) AND name LIKE ?`,
+        [...this.bookIds, `%${this.featureName}%`]
+      );
+      
+      if (featureData) {
+        // Create the appropriate Feature instance using the factory method
+        this.featureStudying = Feature.createFeature(featureData);
+        
+        // Also set the subject for this feature if not already set
+        if (!this.subjectStudying && featureData.subject) {
+          const subjectDataByName = await db.get(
+            'SELECT id, name, grade_id, book_id, default_teacher_id FROM subjects WHERE name = ?',
+            featureData.subject
+          );
+          if (subjectDataByName) {
+            this.setSubjectStudying(subjectDataByName);
+          }
+        }
+      }
+    }
   }
 }

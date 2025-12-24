@@ -1,5 +1,5 @@
 import { ChatCompletionMessageParam } from "openai/resources/chat";
-import Session from "./Session";
+import { Session } from "./Session";
 
 class ConversationManager {
   private static instance: ConversationManager;
@@ -16,11 +16,19 @@ class ConversationManager {
     return ConversationManager.instance;
   }
 
-  public createSession(sessionId: string, grade: string, bookIds: number[]): void {
+  public createSession(
+    sessionId: string, 
+    studentId: number,
+    subjectId?: number, 
+    featureName?: string,
+    chapterId?: number
+  ): void {
     this.sessions.set(sessionId, new Session({
       sessionId,
-      grade,
-      bookIds
+      studentId,
+      subjectId,
+      featureName,
+      chapterId
     }));
   }
 

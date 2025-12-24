@@ -9,7 +9,7 @@ import Chalkboard from "./Chalkboard";
 import Session from "../models/Session";
 import { generateGreeting } from "../utils/generateGreeting";
 
-const HomePage = ({ grade, bookIds }) => {
+const HomePage = ({ studentId, subjectId, childData, subjectData, featureName: propFeatureName }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [socket, setSocket] = useState(null);
@@ -35,12 +35,47 @@ const HomePage = ({ grade, bookIds }) => {
     );
   }, []);
 
+  // Extract feature name and chapter ID from props, URL params, or subject data
+  const [featureName, setFeatureName] = useState(propFeatureName || null);
+  const [chapterId, setChapterId] = useState(null);
+
+  // Check props and URL params for feature name
+  useEffect(() => {
+    // If feature name is provided as prop, use it
+    if (propFeatureName) {
+      setFeatureName(propFeatureName);
+    } else {
+      // Otherwise check URL params
+      const params = new URLSearchParams(window.location.search);
+      const featureParam = params.get('featureName');
+      
+      if (featureParam) {
+        setFeatureName(featureParam);
+      }
+    }
+    
+    // If subject has a selected chapter (from Chapter Teaching feature)
+    if (subjectData) {
+      // Check for direct chapterId property first (added for clarity)
+      if (subjectData.chapterId) {
+        setChapterId(subjectData.chapterId);
+        console.log(`Using direct chapterId: ${subjectData.chapterId}`);
+      } 
+      // Fall back to selectedChapter.id if available
+      else if (subjectData.selectedChapter) {
+        setChapterId(subjectData.selectedChapter.id);
+        console.log(`Using selectedChapter.id: ${subjectData.selectedChapter.id}`);
+      }
+    }
+  }, [propFeatureName, subjectData]);
+
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
     async function initializeSession() {
       try {
-        const createdSession = await Session.create(grade, bookIds);
+        debugger;;
+        const createdSession = await Session.create(studentId, subjectId, featureName, subjectData?.chapterId);
         setSession(createdSession);
         const ws = new WebSocket("ws://localhost:8000");
         setSocket(ws);
@@ -51,8 +86,10 @@ const HomePage = ({ grade, bookIds }) => {
             JSON.stringify({
               type: "session",
               sessionId: createdSession.sessionId,
-              grade: createdSession.grade,
-              bookIds: createdSession.bookIds,
+              studentId: createdSession.studentId,
+              subjectId: createdSession.subjectId,
+              featureName: createdSession.featureName,
+              chapterId: createdSession.chapterId
             })
           );
           // setMessages([
@@ -198,7 +235,7 @@ const HomePage = ({ grade, bookIds }) => {
       }
     }
     initializeSession();
-  }, [grade, bookIds]);
+  }, [studentId, subjectId, featureName, chapterId]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -355,6 +392,24 @@ const HomePage = ({ grade, bookIds }) => {
               )}
             </div>
 
+            <div className="flex flex-col w-full mb-4 hidden">
+              <h1 className="text-3xl font-bold text-white mb-4">
+                {subjectData ? subjectData.name : "Subject"}
+              </h1>
+              
+              {/* Display chapter information if available */}
+              {subjectData && subjectData.selectedChapter && (
+                <div className="bg-yellow-100 rounded-lg p-4 mb-4 shadow-md">
+                  <h2 className="text-xl font-semibold text-[#244d2b] mb-2">
+                    Chapter: {subjectData.selectedChapter.name}
+                  </h2>
+                  <p className="text-gray-700 text-sm">
+                    {subjectData.selectedChapter.description}
+                  </p>
+                </div>
+              )}
+            </div>
+            
             <div className="absolute bottom-4 right-4 flex items-center gap-2">
               <div className="flex items-center gap-2 mt-4">
                 <input

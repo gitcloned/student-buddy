@@ -13,6 +13,11 @@ export async function loadBookFeatures(
     throw new Error("Session not found");
   }
 
+  // Ensure bookIds is defined before using it
+  if (!session.bookIds || session.bookIds.length === 0) {
+    throw new Error("No book IDs available for the session");
+  }
+
   const features = await db.all(
     `SELECT bf.id, bf.book_id, bf.subject, bf.name, bf.how_to_teach
      FROM book_features bf
@@ -34,6 +39,11 @@ export async function loadPedagogicalKnowledgeForBookFeature(
 
   if (!session) {
     throw new Error("Session not found");
+  }
+
+  // Ensure bookIds is defined before using it
+  if (!session.bookIds || session.bookIds.length === 0) {
+    throw new Error("No book IDs available for the session");
   }
 
   const feature = await db.get(
