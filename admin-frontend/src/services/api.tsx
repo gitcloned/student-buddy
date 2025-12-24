@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { 
   TeacherPersona, Book, BookFeature, Grade, Teacher, Subject, Child, 
-  Chapter, Topic, TopicPrerequisite, LessonPlan, LessonSection, 
+  Chapter, Topic, TopicPrerequisite, TopicChapterMapping, LessonPlan, LessonSection, 
   Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource,
   LearningProgression, TopicProgress, LearningIndicatorProgress
 } from '../types';
@@ -9,7 +9,7 @@ import {
 // Re-export all the types for components to use
 export type { 
   TeacherPersona, Book, BookFeature, Grade, Teacher, Subject, Child, 
-  Chapter, Topic, TopicPrerequisite, LessonPlan, LessonSection, 
+  Chapter, Topic, TopicPrerequisite, TopicChapterMapping, LessonPlan, LessonSection, 
   Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource,
   LearningProgression, TopicProgress, LearningIndicatorProgress
 };
@@ -321,12 +321,12 @@ export const topicsApi = {
     return response.data;
   },
   
-  create: async (topic: { name: string, chapter_id: number }): Promise<Topic> => {
+  create: async (topic: { name: string, chapter_ids: number[] }): Promise<Topic> => {
     const response = await apiClient.post('/topics', topic);
     return response.data;
   },
   
-  update: async (id: number, topic: { name: string, chapter_id: number }): Promise<Topic> => {
+  update: async (id: number, topic: { name: string, chapter_ids: number[] }): Promise<Topic> => {
     const response = await apiClient.put(`/topics/${id}`, topic);
     return response.data;
   },
@@ -357,6 +357,20 @@ export const topicsApi = {
   getLearningLevels: async (id: number): Promise<LearningLevel[]> => {
     const response = await apiClient.get(`/topics/${id}/learning-levels`);
     return response.data;
+  },
+  
+  getChapters: async (id: number): Promise<Chapter[]> => {
+    const response = await apiClient.get(`/topics/${id}/chapters`);
+    return response.data;
+  },
+  
+  addChapter: async (id: number, chapter_id: number): Promise<TopicChapterMapping> => {
+    const response = await apiClient.post(`/topics/${id}/chapters`, { chapter_id });
+    return response.data;
+  },
+  
+  removeChapter: async (id: number, chapter_id: number): Promise<void> => {
+    await apiClient.delete(`/topics/${id}/chapters/${chapter_id}`);
   },
 };
 

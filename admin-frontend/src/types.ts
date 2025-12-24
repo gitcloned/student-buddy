@@ -45,6 +45,11 @@ export interface Chapter {
 export interface Topic {
     id?: number;
     name: string;
+    chapter_ids: number[];
+}
+
+export interface TopicChapterMapping {
+    topic_id: number;
     chapter_id: number;
 }
 

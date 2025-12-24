@@ -9,9 +9,9 @@ const TopicForm: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [formValues, setFormValues] = useState<{ name: string; chapter_id: number | string }>({ 
+  const [formValues, setFormValues] = useState<{ name: string; chapter_ids: number[] }>({ 
     name: '', 
-    chapter_id: '' 
+    chapter_ids: [] 
   });
 
   useEffect(() => {
@@ -25,7 +25,7 @@ const TopicForm: React.FC = () => {
           const topic = await topicsApi.getById(parseInt(id));
           setFormValues({ 
             name: topic.name,
-            chapter_id: topic.chapter_id
+            chapter_ids: topic.chapter_ids || []
           });
         }
         
@@ -41,9 +41,20 @@ const TopicForm: React.FC = () => {
     fetchData();
   }, [id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormValues({ ...formValues, [name]: value });
+  };
+
+  const handleChapterToggle = (chapterId: number) => {
+    setFormValues(prev => {
+      const isSelected = prev.chapter_ids.includes(chapterId);
+      if (isSelected) {
+        return { ...prev, chapter_ids: prev.chapter_ids.filter(id => id !== chapterId) };
+      } else {
+        return { ...prev, chapter_ids: [...prev.chapter_ids, chapterId] };
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,8 +65,8 @@ const TopicForm: React.FC = () => {
       return;
     }
 
-    if (!formValues.chapter_id) {
-      setError('Chapter is required.');
+    if (formValues.chapter_ids.length === 0) {
+      setError('At least one chapter is required.');
       return;
     }
 
@@ -65,7 +76,7 @@ const TopicForm: React.FC = () => {
       
       const topicData = {
         name: formValues.name,
-        chapter_id: Number(formValues.chapter_id)
+        chapter_ids: formValues.chapter_ids
       };
       
       if (id && id !== 'new') {
@@ -120,23 +131,31 @@ const TopicForm: React.FC = () => {
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="chapter_id">
-            Chapter
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Chapters (select one or more)
           </label>
-          <select
-            id="chapter_id"
-            name="chapter_id"
-            value={formValues.chapter_id}
-            onChange={handleChange}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          >
-            <option value="">Select a chapter</option>
-            {chapters.map((chapter) => (
-              <option key={chapter.id} value={chapter.id}>
-                {chapter.name}
-              </option>
-            ))}
-          </select>
+          <div className="shadow border rounded w-full py-2 px-3 bg-white max-h-48 overflow-y-auto">
+            {chapters.length === 0 ? (
+              <p className="text-gray-500 text-sm">No chapters available</p>
+            ) : (
+              chapters.map((chapter) => (
+                <label key={chapter.id} className="flex items-center py-1 hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formValues.chapter_ids.includes(chapter.id!)}
+                    onChange={() => handleChapterToggle(chapter.id!)}
+                    className="mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                  <span className="text-gray-700">{chapter.name}</span>
+                </label>
+              ))
+            )}
+          </div>
+          {formValues.chapter_ids.length > 0 && (
+            <p className="text-sm text-gray-500 mt-1">
+              {formValues.chapter_ids.length} chapter(s) selected
+            </p>
+          )}
         </div>
 
         <div className="flex items-center justify-between mt-6">

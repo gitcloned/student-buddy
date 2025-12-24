@@ -90,6 +90,14 @@ async function initializeDatabase() {
       PRIMARY KEY (topic_id, prerequisite_topic_id)
     );
 
+    CREATE TABLE IF NOT EXISTS topic_chapter_mapping (
+      topic_id INTEGER,
+      chapter_id INTEGER,
+      FOREIGN KEY (topic_id) REFERENCES topics(id),
+      FOREIGN KEY (chapter_id) REFERENCES chapters(id),
+      PRIMARY KEY (topic_id, chapter_id)
+    );
+
     CREATE TABLE IF NOT EXISTS lesson_plans (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
@@ -913,10 +921,10 @@ app.delete("/api/chapters/:id", async (req: Request, res: Response) => {
   const id = req.params.id;
 
   try {
-    // Check if chapter is being used by any topics before deleting
-    const topicsCount = await db.get("SELECT COUNT(*) as count FROM topics WHERE chapter_id = ?", id);
+    // Check if chapter is being used by any topic mappings before deleting
+    const topicMappingsCount = await db.get("SELECT COUNT(*) as count FROM topic_chapter_mapping WHERE chapter_id = ?", id);
 
-    if (topicsCount.count > 0) {
+    if (topicMappingsCount.count > 0) {
       res.status(400).json({ error: "Cannot delete chapter as it has topics associated with it" });
       return;
     }
@@ -1036,7 +1044,13 @@ app.delete("/api/children/:id", async (req: Request, res: Response) => {
 app.get("/api/topics", async (req: Request, res: Response) => {
   try {
     const topics = await db.all("SELECT * FROM topics");
-    res.json(topics);
+    // Fetch chapter mappings for all topics
+    const mappings = await db.all("SELECT * FROM topic_chapter_mapping");
+    const topicsWithChapters = topics.map((topic: any) => ({
+      ...topic,
+      chapter_ids: mappings.filter((m: any) => m.topic_id === topic.id).map((m: any) => m.chapter_id)
+    }));
+    res.json(topicsWithChapters);
   } catch (error) {
     console.error("Error fetching topics:", error);
     res.status(500).json({ error: "Failed to fetch topics" });
@@ -1050,7 +1064,13 @@ app.get("/api/topics/:id", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Topic not found" });
       return;
     }
-    res.json(topic);
+    // Fetch chapter mappings for this topic
+    const mappings = await db.all("SELECT chapter_id FROM topic_chapter_mapping WHERE topic_id = ?", req.params.id);
+    const topicWithChapters = {
+      ...topic,
+      chapter_ids: mappings.map((m: any) => m.chapter_id)
+    };
+    res.json(topicWithChapters);
   } catch (error) {
     console.error("Error fetching topic:", error);
     res.status(500).json({ error: "Failed to fetch topic" });
@@ -1065,8 +1085,21 @@ app.get("/api/chapters/:id/topics", async (req: Request, res: Response) => {
       return;
     }
 
-    const topics = await db.all("SELECT * FROM topics WHERE chapter_id = ?", req.params.id);
-    res.json(topics);
+    // Get topics via the mapping table
+    const topics = await db.all(`
+      SELECT t.* FROM topics t
+      JOIN topic_chapter_mapping tcm ON t.id = tcm.topic_id
+      WHERE tcm.chapter_id = ?
+    `, req.params.id);
+    
+    // Also fetch all chapter_ids for each topic
+    const allMappings = await db.all("SELECT * FROM topic_chapter_mapping");
+    const topicsWithChapters = topics.map((topic: any) => ({
+      ...topic,
+      chapter_ids: allMappings.filter((m: any) => m.topic_id === topic.id).map((m: any) => m.chapter_id)
+    }));
+    
+    res.json(topicsWithChapters);
   } catch (error) {
     console.error("Error fetching chapter's topics:", error);
     res.status(500).json({ error: "Failed to fetch chapter's topics" });
@@ -1074,25 +1107,38 @@ app.get("/api/chapters/:id/topics", async (req: Request, res: Response) => {
 });
 
 app.post("/api/topics", async (req: Request, res: Response) => {
-  const { name, chapter_id } = req.body;
+  const { name, chapter_ids } = req.body;
 
-  if (!name || !chapter_id) {
-    res.status(400).json({ error: "Name and chapter_id are required" });
+  if (!name) {
+    res.status(400).json({ error: "Name is required" });
     return;
   }
 
   try {
-    // Verify that the chapter_id exists
-    const chapterExists = await db.get("SELECT id FROM chapters WHERE id = ?", chapter_id);
-    if (!chapterExists) {
-      res.status(400).json({ error: "Invalid chapter_id" });
-      return;
+    // Verify that all chapter_ids exist if provided
+    if (chapter_ids && Array.isArray(chapter_ids) && chapter_ids.length > 0) {
+      for (const chapterId of chapter_ids) {
+        const chapterExists = await db.get("SELECT id FROM chapters WHERE id = ?", chapterId);
+        if (!chapterExists) {
+          res.status(400).json({ error: `Invalid chapter_id: ${chapterId}` });
+          return;
+        }
+      }
     }
 
-    const result = await db.run("INSERT INTO topics (name, chapter_id) VALUES (?, ?)", [name, chapter_id]);
-    const id = result.lastID;
-    const topic = await db.get("SELECT * FROM topics WHERE id = ?", id);
-    res.status(201).json(topic);
+    // Create the topic (without chapter_id in the topics table)
+    const result = await db.run("INSERT INTO topics (name) VALUES (?)", [name]);
+    const topicId = result.lastID;
+
+    // Create chapter mappings
+    if (chapter_ids && Array.isArray(chapter_ids)) {
+      for (const chapterId of chapter_ids) {
+        await db.run("INSERT INTO topic_chapter_mapping (topic_id, chapter_id) VALUES (?, ?)", [topicId, chapterId]);
+      }
+    }
+
+    const topic = await db.get("SELECT * FROM topics WHERE id = ?", topicId);
+    res.status(201).json({ ...topic, chapter_ids: chapter_ids || [] });
   } catch (error) {
     console.error("Error creating topic:", error);
     res.status(500).json({ error: "Failed to create topic" });
@@ -1100,29 +1146,46 @@ app.post("/api/topics", async (req: Request, res: Response) => {
 });
 
 app.put("/api/topics/:id", async (req: Request, res: Response) => {
-  const { name, chapter_id } = req.body;
+  const { name, chapter_ids } = req.body;
   const id = req.params.id;
 
-  if (!name || !chapter_id) {
-    res.status(400).json({ error: "Name and chapter_id are required" });
+  if (!name) {
+    res.status(400).json({ error: "Name is required" });
     return;
   }
 
   try {
-    // Verify that the chapter_id exists
-    const chapterExists = await db.get("SELECT id FROM chapters WHERE id = ?", chapter_id);
-    if (!chapterExists) {
-      res.status(400).json({ error: "Invalid chapter_id" });
-      return;
-    }
-
-    await db.run("UPDATE topics SET name = ?, chapter_id = ? WHERE id = ?", [name, chapter_id, id]);
-    const topic = await db.get("SELECT * FROM topics WHERE id = ?", id);
-    if (!topic) {
+    // Check if topic exists
+    const existingTopic = await db.get("SELECT * FROM topics WHERE id = ?", id);
+    if (!existingTopic) {
       res.status(404).json({ error: "Topic not found" });
       return;
     }
-    res.json(topic);
+
+    // Verify that all chapter_ids exist if provided
+    if (chapter_ids && Array.isArray(chapter_ids) && chapter_ids.length > 0) {
+      for (const chapterId of chapter_ids) {
+        const chapterExists = await db.get("SELECT id FROM chapters WHERE id = ?", chapterId);
+        if (!chapterExists) {
+          res.status(400).json({ error: `Invalid chapter_id: ${chapterId}` });
+          return;
+        }
+      }
+    }
+
+    // Update the topic name
+    await db.run("UPDATE topics SET name = ? WHERE id = ?", [name, id]);
+
+    // Update chapter mappings: delete existing and insert new ones
+    await db.run("DELETE FROM topic_chapter_mapping WHERE topic_id = ?", id);
+    if (chapter_ids && Array.isArray(chapter_ids)) {
+      for (const chapterId of chapter_ids) {
+        await db.run("INSERT INTO topic_chapter_mapping (topic_id, chapter_id) VALUES (?, ?)", [id, chapterId]);
+      }
+    }
+
+    const topic = await db.get("SELECT * FROM topics WHERE id = ?", id);
+    res.json({ ...topic, chapter_ids: chapter_ids || [] });
   } catch (error) {
     console.error("Error updating topic:", error);
     res.status(500).json({ error: "Failed to update topic" });
@@ -1143,11 +1206,92 @@ app.delete("/api/topics/:id", async (req: Request, res: Response) => {
       return;
     }
 
+    // Delete chapter mappings first
+    await db.run("DELETE FROM topic_chapter_mapping WHERE topic_id = ?", id);
     await db.run("DELETE FROM topics WHERE id = ?", id);
     res.status(204).send();
   } catch (error) {
     console.error("Error deleting topic:", error);
     res.status(500).json({ error: "Failed to delete topic" });
+  }
+});
+
+// Topic-Chapter mapping endpoints
+app.get("/api/topics/:id/chapters", async (req: Request, res: Response) => {
+  try {
+    const topic = await db.get("SELECT * FROM topics WHERE id = ?", req.params.id);
+    if (!topic) {
+      res.status(404).json({ error: "Topic not found" });
+      return;
+    }
+
+    const chapters = await db.all(`
+      SELECT c.* FROM chapters c
+      JOIN topic_chapter_mapping tcm ON c.id = tcm.chapter_id
+      WHERE tcm.topic_id = ?
+    `, req.params.id);
+    res.json(chapters);
+  } catch (error) {
+    console.error("Error fetching topic's chapters:", error);
+    res.status(500).json({ error: "Failed to fetch topic's chapters" });
+  }
+});
+
+app.post("/api/topics/:id/chapters", async (req: Request, res: Response) => {
+  const { chapter_id } = req.body;
+  const topic_id = req.params.id;
+
+  if (!chapter_id) {
+    res.status(400).json({ error: "chapter_id is required" });
+    return;
+  }
+
+  try {
+    // Verify topic exists
+    const topicExists = await db.get("SELECT id FROM topics WHERE id = ?", topic_id);
+    if (!topicExists) {
+      res.status(404).json({ error: "Topic not found" });
+      return;
+    }
+
+    // Verify chapter exists
+    const chapterExists = await db.get("SELECT id FROM chapters WHERE id = ?", chapter_id);
+    if (!chapterExists) {
+      res.status(400).json({ error: "Invalid chapter_id" });
+      return;
+    }
+
+    // Check if mapping already exists
+    const existingMapping = await db.get("SELECT * FROM topic_chapter_mapping WHERE topic_id = ? AND chapter_id = ?", [topic_id, chapter_id]);
+    if (existingMapping) {
+      res.status(400).json({ error: "This topic-chapter mapping already exists" });
+      return;
+    }
+
+    await db.run("INSERT INTO topic_chapter_mapping (topic_id, chapter_id) VALUES (?, ?)", [topic_id, chapter_id]);
+    res.status(201).json({ topic_id: parseInt(topic_id), chapter_id });
+  } catch (error) {
+    console.error("Error adding chapter to topic:", error);
+    res.status(500).json({ error: "Failed to add chapter to topic" });
+  }
+});
+
+app.delete("/api/topics/:id/chapters/:chapterId", async (req: Request, res: Response) => {
+  const topic_id = req.params.id;
+  const chapter_id = req.params.chapterId;
+
+  try {
+    const result = await db.run("DELETE FROM topic_chapter_mapping WHERE topic_id = ? AND chapter_id = ?", [topic_id, chapter_id]);
+
+    if (result.changes === 0) {
+      res.status(404).json({ error: "Topic-chapter mapping not found" });
+      return;
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error removing chapter from topic:", error);
+    res.status(500).json({ error: "Failed to remove chapter from topic" });
   }
 });
 

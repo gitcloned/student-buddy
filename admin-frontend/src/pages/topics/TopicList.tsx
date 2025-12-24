@@ -44,9 +44,12 @@ const TopicList: React.FC = () => {
     }
   };
 
-  const getChapterName = (chapterId: number): string => {
-    const chapter = chapters.find(c => c.id === chapterId);
-    return chapter ? chapter.name : 'Unknown Chapter';
+  const getChapterNames = (chapterIds: number[]): string => {
+    if (!chapterIds || chapterIds.length === 0) return 'No chapters';
+    const names = chapterIds
+      .map(id => chapters.find(c => c.id === id)?.name)
+      .filter(Boolean);
+    return names.length > 0 ? names.join(', ') : 'Unknown Chapters';
   };
 
   if (isLoading) {
@@ -91,7 +94,7 @@ const TopicList: React.FC = () => {
                   Name
                 </th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Chapter
+                  Chapters
                 </th>
                 <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -103,7 +106,7 @@ const TopicList: React.FC = () => {
                 <tr key={topic.id} className="hover:bg-gray-50">
                   <td className="py-4 px-4 whitespace-nowrap">{topic.id}</td>
                   <td className="py-4 px-4 whitespace-nowrap">{topic.name}</td>
-                  <td className="py-4 px-4 whitespace-nowrap">{getChapterName(topic.chapter_id)}</td>
+                  <td className="py-4 px-4">{getChapterNames(topic.chapter_ids)}</td>
                   <td className="py-4 px-4 whitespace-nowrap text-right">
                     <Link
                       to={`/topics/${topic.id}/prerequisites`}
