@@ -91,11 +91,12 @@ async function initializeDatabase() {
     );
 
     CREATE TABLE IF NOT EXISTS topic_chapter_mapping (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       topic_id INTEGER,
       chapter_id INTEGER,
       FOREIGN KEY (topic_id) REFERENCES topics(id),
       FOREIGN KEY (chapter_id) REFERENCES chapters(id),
-      PRIMARY KEY (topic_id, chapter_id)
+      UNIQUE (topic_id, chapter_id)
     );
 
     CREATE TABLE IF NOT EXISTS lesson_plans (
@@ -153,8 +154,10 @@ async function initializeDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       topic_id INTEGER,
+      topic_chapter_mapping_id INTEGER,
       common_misconception TEXT,
-      FOREIGN KEY (topic_id) REFERENCES topics(id)
+      FOREIGN KEY (topic_id) REFERENCES topics(id),
+      FOREIGN KEY (topic_chapter_mapping_id) REFERENCES topic_chapter_mapping(id)
     );
 
     CREATE TABLE IF NOT EXISTS learning_indicator_resources (
@@ -196,7 +199,53 @@ async function initializeDatabase() {
   `);
 }
 
-initializeDatabase().catch(console.error);
+// Migration: Add new columns to existing tables if they don't exist
+async function runMigrations() {
+  try {
+    // Check if topic_chapter_mapping has id column, if not recreate the table
+    const tcmInfo = await db.all("PRAGMA table_info(topic_chapter_mapping)");
+    const hasIdColumn = tcmInfo.some((col: any) => col.name === 'id');
+    
+    if (!hasIdColumn && tcmInfo.length > 0) {
+      console.log("Migrating topic_chapter_mapping table to add id column...");
+      // Create new table with id column
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS topic_chapter_mapping_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          topic_id INTEGER,
+          chapter_id INTEGER,
+          FOREIGN KEY (topic_id) REFERENCES topics(id),
+          FOREIGN KEY (chapter_id) REFERENCES chapters(id),
+          UNIQUE (topic_id, chapter_id)
+        );
+        INSERT INTO topic_chapter_mapping_new (topic_id, chapter_id) 
+        SELECT topic_id, chapter_id FROM topic_chapter_mapping;
+        DROP TABLE topic_chapter_mapping;
+        ALTER TABLE topic_chapter_mapping_new RENAME TO topic_chapter_mapping;
+      `);
+      console.log("topic_chapter_mapping migration complete.");
+    }
+
+    // Check if learning_indicators has topic_chapter_mapping_id column
+    const liInfo = await db.all("PRAGMA table_info(learning_indicators)");
+    const hasMappingIdColumn = liInfo.some((col: any) => col.name === 'topic_chapter_mapping_id');
+    
+    if (!hasMappingIdColumn && liInfo.length > 0) {
+      console.log("Adding topic_chapter_mapping_id column to learning_indicators...");
+      await db.exec(`
+        ALTER TABLE learning_indicators ADD COLUMN topic_chapter_mapping_id INTEGER REFERENCES topic_chapter_mapping(id);
+      `);
+      console.log("learning_indicators migration complete.");
+    }
+  } catch (error) {
+    console.error("Migration error:", error);
+  }
+}
+
+// Initialize database first, then run migrations
+initializeDatabase()
+  .then(() => runMigrations())
+  .catch(console.error);
 
 // GET all teacher personas
 app.get("/api/personas", async (req: Request, res: Response) => {
@@ -1226,7 +1275,7 @@ app.get("/api/topics/:id/chapters", async (req: Request, res: Response) => {
     }
 
     const chapters = await db.all(`
-      SELECT c.* FROM chapters c
+      SELECT c.*, tcm.id as mapping_id FROM chapters c
       JOIN topic_chapter_mapping tcm ON c.id = tcm.chapter_id
       WHERE tcm.topic_id = ?
     `, req.params.id);
@@ -2287,7 +2336,12 @@ app.delete("/api/teachers/:id/subjects/:subjectId", async (req: Request, res: Re
 // GET all learning indicators
 app.get("/api/learning-indicators", async (req: Request, res: Response) => {
   try {
-    const learningIndicators = await db.all("SELECT * FROM learning_indicators");
+    const learningIndicators = await db.all(`
+      SELECT li.*, c.name as chapter_name, c.id as chapter_id
+      FROM learning_indicators li
+      LEFT JOIN topic_chapter_mapping tcm ON li.topic_chapter_mapping_id = tcm.id
+      LEFT JOIN chapters c ON tcm.chapter_id = c.id
+    `);
     res.json(learningIndicators);
   } catch (error) {
     console.error("Error fetching learning indicators:", error);
@@ -2312,7 +2366,7 @@ app.get("/api/learning-indicators/:id", async (req: Request, res: Response) => {
 
 // POST create a new learning indicator
 app.post("/api/learning-indicators", async (req: Request, res: Response) => {
-  const { title, topic_id, common_misconception } = req.body;
+  const { title, topic_id, topic_chapter_mapping_id, common_misconception } = req.body;
 
   if (!title || !topic_id) {
     res.status(400).json({ error: "Title and topic ID are required" });
@@ -2327,15 +2381,28 @@ app.post("/api/learning-indicators", async (req: Request, res: Response) => {
       return;
     }
 
+    // If topic_chapter_mapping_id is provided, verify it exists and belongs to the topic
+    if (topic_chapter_mapping_id) {
+      const mapping = await db.get(
+        "SELECT * FROM topic_chapter_mapping WHERE id = ? AND topic_id = ?",
+        [topic_chapter_mapping_id, topic_id]
+      );
+      if (!mapping) {
+        res.status(400).json({ error: "Invalid topic_chapter_mapping_id or it doesn't belong to the specified topic" });
+        return;
+      }
+    }
+
     const result = await db.run(
-      "INSERT INTO learning_indicators (title, topic_id, common_misconception) VALUES (?, ?, ?)",
-      [title, topic_id, common_misconception || null]
+      "INSERT INTO learning_indicators (title, topic_id, topic_chapter_mapping_id, common_misconception) VALUES (?, ?, ?, ?)",
+      [title, topic_id, topic_chapter_mapping_id || null, common_misconception || null]
     );
 
     const newLearningIndicator = {
       id: result.lastID,
       title,
       topic_id,
+      topic_chapter_mapping_id: topic_chapter_mapping_id || null,
       common_misconception
     };
 
@@ -2348,7 +2415,7 @@ app.post("/api/learning-indicators", async (req: Request, res: Response) => {
 
 // PUT update a learning indicator
 app.put("/api/learning-indicators/:id", async (req: Request, res: Response) => {
-  const { title, topic_id, common_misconception } = req.body;
+  const { title, topic_id, topic_chapter_mapping_id, common_misconception } = req.body;
   const id = req.params.id;
 
   if (!title || !topic_id) {
@@ -2371,15 +2438,28 @@ app.put("/api/learning-indicators/:id", async (req: Request, res: Response) => {
       return;
     }
 
+    // If topic_chapter_mapping_id is provided, verify it exists and belongs to the topic
+    if (topic_chapter_mapping_id) {
+      const mapping = await db.get(
+        "SELECT * FROM topic_chapter_mapping WHERE id = ? AND topic_id = ?",
+        [topic_chapter_mapping_id, topic_id]
+      );
+      if (!mapping) {
+        res.status(400).json({ error: "Invalid topic_chapter_mapping_id or it doesn't belong to the specified topic" });
+        return;
+      }
+    }
+
     await db.run(
-      "UPDATE learning_indicators SET title = ?, topic_id = ?, common_misconception = ? WHERE id = ?",
-      [title, topic_id, common_misconception || null, id]
+      "UPDATE learning_indicators SET title = ?, topic_id = ?, topic_chapter_mapping_id = ?, common_misconception = ? WHERE id = ?",
+      [title, topic_id, topic_chapter_mapping_id || null, common_misconception || null, id]
     );
 
     const updatedLearningIndicator = {
       id: Number(id),
       title,
       topic_id,
+      topic_chapter_mapping_id: topic_chapter_mapping_id || null,
       common_misconception
     };
 

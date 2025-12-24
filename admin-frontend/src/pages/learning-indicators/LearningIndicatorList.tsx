@@ -118,6 +118,7 @@ const LearningIndicatorList: React.FC = () => {
                 <th className="py-2 px-4 border-b">ID</th>
                 <th className="py-2 px-4 border-b">Title</th>
                 <th className="py-2 px-4 border-b">Topic</th>
+                <th className="py-2 px-4 border-b">Chapter</th>
                 <th className="py-2 px-4 border-b">Common Misconception</th>
                 <th className="py-2 px-4 border-b">Actions</th>
               </tr>
@@ -125,7 +126,7 @@ const LearningIndicatorList: React.FC = () => {
             <tbody>
               {learningIndicators.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-4">No learning indicators found</td>
+                  <td colSpan={6} className="text-center py-4">No learning indicators found</td>
                 </tr>
               ) : (
                 learningIndicators.map(indicator => (
@@ -133,6 +134,13 @@ const LearningIndicatorList: React.FC = () => {
                     <td className="py-2 px-4 border-b text-center">{indicator.id}</td>
                     <td className="py-2 px-4 border-b">{indicator.title}</td>
                     <td className="py-2 px-4 border-b">{getTopicName(indicator.topic_id)}</td>
+                    <td className="py-2 px-4 border-b">
+                      {indicator.chapter_name ? (
+                        <span className="text-blue-600">{indicator.chapter_name}</span>
+                      ) : (
+                        <span className="text-gray-400">All chapters</span>
+                      )}
+                    </td>
                     <td className="py-2 px-4 border-b">{indicator.common_misconception ? 
                       (indicator.common_misconception.length > 50 ? 
                         `${indicator.common_misconception.substring(0, 50)}...` : 

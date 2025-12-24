@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { learningIndicatorsApi, topicsApi, Topic } from '../../services/api';
+import { learningIndicatorsApi, topicsApi, Topic, ChapterWithMapping } from '../../services/api';
 
 interface LearningIndicatorFormProps {
   isEditing?: boolean;
@@ -9,12 +9,19 @@ interface LearningIndicatorFormProps {
 const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing = false }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState<{ title: string; topic_id: number | string; common_misconception: string }>({
+  const [formData, setFormData] = useState<{ 
+    title: string; 
+    topic_id: number | string; 
+    topic_chapter_mapping_id: number | string;
+    common_misconception: string 
+  }>({
     title: '',
     topic_id: '',
+    topic_chapter_mapping_id: '',
     common_misconception: ''
   });
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [topicChapters, setTopicChapters] = useState<ChapterWithMapping[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [initialLoading, setInitialLoading] = useState<boolean>(isEditing);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +49,14 @@ const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing
           setFormData({
             title: data.title,
             topic_id: data.topic_id,
+            topic_chapter_mapping_id: data.topic_chapter_mapping_id || '',
             common_misconception: data.common_misconception || ''
           });
+          // Fetch chapters for this topic
+          if (data.topic_id) {
+            const chapters = await topicsApi.getChapters(data.topic_id);
+            setTopicChapters(chapters);
+          }
         } catch (error) {
           console.error('Error fetching learning indicator:', error);
           setError('Failed to fetch learning indicator');
@@ -56,12 +69,46 @@ const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing
     fetchLearningIndicator();
   }, [isEditing, id]);
 
+  // Fetch chapters when topic changes
+  useEffect(() => {
+    const fetchTopicChapters = async () => {
+      if (formData.topic_id) {
+        try {
+          const chapters = await topicsApi.getChapters(Number(formData.topic_id));
+          setTopicChapters(chapters);
+        } catch (error) {
+          console.error('Error fetching topic chapters:', error);
+          setTopicChapters([]);
+        }
+      } else {
+        setTopicChapters([]);
+      }
+    };
+
+    fetchTopicChapters();
+  }, [formData.topic_id]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'topic_id' ? (value ? Number(value) : '') : value
-    }));
+    
+    if (name === 'topic_id') {
+      // Reset chapter selection when topic changes
+      setFormData(prev => ({
+        ...prev,
+        topic_id: value ? Number(value) : '',
+        topic_chapter_mapping_id: ''
+      }));
+    } else if (name === 'topic_chapter_mapping_id') {
+      setFormData(prev => ({
+        ...prev,
+        topic_chapter_mapping_id: value ? Number(value) : ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,20 +125,19 @@ const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing
     }
 
     try {
+      const indicatorData = {
+        title: formData.title,
+        topic_id: formData.topic_id as number,
+        topic_chapter_mapping_id: formData.topic_chapter_mapping_id ? Number(formData.topic_chapter_mapping_id) : null,
+        common_misconception: formData.common_misconception
+      };
+
       if (isEditing && id) {
-        await learningIndicatorsApi.update(Number(id), {
-          title: formData.title,
-          topic_id: formData.topic_id as number,
-          common_misconception: formData.common_misconception
-        });
+        await learningIndicatorsApi.update(Number(id), indicatorData);
         setSuccessMessage('Learning indicator updated successfully');
         setTimeout(() => navigate('/learning-indicators'), 1500);
       } else {
-        await learningIndicatorsApi.create({
-          title: formData.title,
-          topic_id: formData.topic_id as number,
-          common_misconception: formData.common_misconception
-        });
+        await learningIndicatorsApi.create(indicatorData);
         setSuccessMessage('Learning indicator created successfully');
         setTimeout(() => navigate('/learning-indicators'), 1500);
       }
@@ -157,6 +203,31 @@ const LearningIndicatorForm: React.FC<LearningIndicatorFormProps> = ({ isEditing
               <option key={topic.id} value={topic.id}>{topic.name}</option>
             ))}
           </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="topic_chapter_mapping_id">
+            Chapter Context <span className="text-gray-400 text-xs font-normal">(optional - specify which chapter this LI is covered in)</span>
+          </label>
+          <select
+            id="topic_chapter_mapping_id"
+            name="topic_chapter_mapping_id"
+            value={formData.topic_chapter_mapping_id}
+            onChange={handleChange}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            disabled={!formData.topic_id || topicChapters.length === 0}
+          >
+            <option value="">No specific chapter (applies to all)</option>
+            {topicChapters.map(chapter => (
+              <option key={chapter.mapping_id} value={chapter.mapping_id}>{chapter.name}</option>
+            ))}
+          </select>
+          {formData.topic_id && topicChapters.length === 0 && (
+            <p className="text-sm text-gray-500 mt-1">This topic has no chapters assigned yet.</p>
+          )}
+          {formData.topic_id && topicChapters.length > 0 && (
+            <p className="text-sm text-gray-500 mt-1">Select a chapter if this learning indicator is specific to a particular chapter.</p>
+          )}
         </div>
         
         <div className="mb-6">

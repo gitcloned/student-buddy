@@ -3,7 +3,7 @@ import {
   TeacherPersona, Book, BookFeature, Grade, Teacher, Subject, Child, 
   Chapter, Topic, TopicPrerequisite, TopicChapterMapping, LessonPlan, LessonSection, 
   Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource,
-  LearningProgression, TopicProgress, LearningIndicatorProgress
+  LearningProgression, TopicProgress, LearningIndicatorProgress, ChapterWithMapping
 } from '../types';
 
 // Re-export all the types for components to use
@@ -11,7 +11,7 @@ export type {
   TeacherPersona, Book, BookFeature, Grade, Teacher, Subject, Child, 
   Chapter, Topic, TopicPrerequisite, TopicChapterMapping, LessonPlan, LessonSection, 
   Resource, SectionResource, LearningLevel, LearningIndicator, LearningIndicatorResource,
-  LearningProgression, TopicProgress, LearningIndicatorProgress
+  LearningProgression, TopicProgress, LearningIndicatorProgress, ChapterWithMapping
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
@@ -359,7 +359,7 @@ export const topicsApi = {
     return response.data;
   },
   
-  getChapters: async (id: number): Promise<Chapter[]> => {
+  getChapters: async (id: number): Promise<ChapterWithMapping[]> => {
     const response = await apiClient.get(`/topics/${id}/chapters`);
     return response.data;
   },
@@ -545,6 +545,7 @@ export const learningIndicatorsApi = {
   create: async (indicator: { 
     title: string, 
     topic_id: number,
+    topic_chapter_mapping_id?: number | null,
     common_misconception?: string
   }): Promise<LearningIndicator> => {
     const response = await apiClient.post('/learning-indicators', indicator);
@@ -554,6 +555,7 @@ export const learningIndicatorsApi = {
   update: async (id: number, indicator: { 
     title: string, 
     topic_id: number,
+    topic_chapter_mapping_id?: number | null,
     common_misconception?: string
   }): Promise<LearningIndicator> => {
     const response = await apiClient.put(`/learning-indicators/${id}`, indicator);

@@ -116,7 +116,14 @@ export interface LearningIndicator {
     id?: number;
     title: string;
     topic_id: number;
+    topic_chapter_mapping_id?: number | null;
+    chapter_id?: number | null;
+    chapter_name?: string | null;
     common_misconception?: string;
+}
+
+export interface ChapterWithMapping extends Chapter {
+    mapping_id: number;
 }
 
 export interface LearningIndicatorResource {
