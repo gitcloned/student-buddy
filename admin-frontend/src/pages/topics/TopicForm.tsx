@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { topicsApi, chaptersApi, Topic, Chapter } from '../../services/api';
+import { topicsApi, chaptersApi, subjectsApi, gradesApi, Chapter, Subject, Grade } from '../../services/api';
 
 const TopicForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -8,7 +8,17 @@ const TopicForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Data
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  
+  // Filters
+  const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
+  
+  // Form values
   const [formValues, setFormValues] = useState<{ name: string; chapter_ids: number[] }>({ 
     name: '', 
     chapter_ids: [] 
@@ -18,7 +28,13 @@ const TopicForm: React.FC = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const chaptersData = await chaptersApi.getAll();
+        const [gradesData, subjectsData, chaptersData] = await Promise.all([
+          gradesApi.getAll(),
+          subjectsApi.getAll(),
+          chaptersApi.getAll()
+        ]);
+        setGrades(gradesData);
+        setSubjects(subjectsData);
         setChapters(chaptersData);
 
         if (id && id !== 'new') {
@@ -41,9 +57,40 @@ const TopicForm: React.FC = () => {
     fetchData();
   }, [id]);
 
+  // Filter subjects based on selected grade
+  const filteredSubjects = useMemo(() => {
+    if (!selectedGradeId) return subjects;
+    return subjects.filter(s => s.grade_id === selectedGradeId);
+  }, [subjects, selectedGradeId]);
+
+  // Filter chapters based on selected subject (and indirectly grade)
+  const filteredChapters = useMemo(() => {
+    if (!selectedSubjectId) {
+      if (!selectedGradeId) return chapters;
+      // If only grade is selected, show chapters for all subjects in that grade
+      const subjectIdsInGrade = subjects.filter(s => s.grade_id === selectedGradeId).map(s => s.id);
+      return chapters.filter(c => subjectIdsInGrade.includes(c.subject_id));
+    }
+    return chapters.filter(c => c.subject_id === selectedSubjectId);
+  }, [chapters, subjects, selectedGradeId, selectedSubjectId]);
+
+  // Get chapter details with subject and grade info
+  const getChapterDetails = (chapterId: number) => {
+    const chapter = chapters.find(c => c.id === chapterId);
+    if (!chapter) return null;
+    const subject = subjects.find(s => s.id === chapter.subject_id);
+    const grade = subject ? grades.find(g => g.id === subject.grade_id) : null;
+    return { chapter, subject, grade };
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormValues({ ...formValues, [name]: value });
+  };
+
+  const handleGradeChange = (gradeId: number | '') => {
+    setSelectedGradeId(gradeId);
+    setSelectedSubjectId(''); // Reset subject when grade changes
   };
 
   const handleChapterToggle = (chapterId: number) => {
@@ -55,6 +102,13 @@ const TopicForm: React.FC = () => {
         return { ...prev, chapter_ids: [...prev.chapter_ids, chapterId] };
       }
     });
+  };
+
+  const handleRemoveChapter = (chapterId: number) => {
+    setFormValues(prev => ({
+      ...prev,
+      chapter_ids: prev.chapter_ids.filter(id => id !== chapterId)
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,32 +184,107 @@ const TopicForm: React.FC = () => {
           />
         </div>
 
+        {/* Selected Chapters Section */}
+        {formValues.chapter_ids.length > 0 && (
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Selected Chapters ({formValues.chapter_ids.length})
+            </label>
+            <div className="shadow border rounded w-full py-2 px-3 bg-gray-50 max-h-32 overflow-y-auto">
+              {formValues.chapter_ids.map((chapterId) => {
+                const details = getChapterDetails(chapterId);
+                if (!details) return null;
+                return (
+                  <div key={chapterId} className="flex items-center justify-between py-1 px-2 mb-1 bg-white rounded border">
+                    <span className="text-gray-700 text-sm">
+                      {details.chapter.name}
+                      <span className="text-gray-400 text-xs ml-2">
+                        ({details.subject?.name || 'Unknown'}, {details.grade?.name || 'Unknown'})
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveChapter(chapterId)}
+                      className="text-red-500 hover:text-red-700 ml-2 font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Chapter Selection with Filters */}
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2">
-            Chapters (select one or more)
+            Add Chapters
           </label>
+          
+          {/* Filter Dropdowns */}
+          <div className="flex gap-3 mb-3">
+            <div className="flex-1">
+              <label className="block text-gray-600 text-xs mb-1">Filter by Grade</label>
+              <select
+                value={selectedGradeId}
+                onChange={(e) => handleGradeChange(e.target.value ? Number(e.target.value) : '')}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 text-sm leading-tight focus:outline-none focus:shadow-outline"
+              >
+                <option value="">All Grades</option>
+                {grades.map((grade) => (
+                  <option key={grade.id} value={grade.id}>
+                    {grade.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-gray-600 text-xs mb-1">Filter by Subject</label>
+              <select
+                value={selectedSubjectId}
+                onChange={(e) => setSelectedSubjectId(e.target.value ? Number(e.target.value) : '')}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 text-sm leading-tight focus:outline-none focus:shadow-outline"
+                disabled={filteredSubjects.length === 0}
+              >
+                <option value="">All Subjects</option>
+                {filteredSubjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Chapters Checkbox List */}
           <div className="shadow border rounded w-full py-2 px-3 bg-white max-h-48 overflow-y-auto">
-            {chapters.length === 0 ? (
-              <p className="text-gray-500 text-sm">No chapters available</p>
+            {filteredChapters.length === 0 ? (
+              <p className="text-gray-500 text-sm py-2">No chapters available for the selected filters</p>
             ) : (
-              chapters.map((chapter) => (
-                <label key={chapter.id} className="flex items-center py-1 hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formValues.chapter_ids.includes(chapter.id!)}
-                    onChange={() => handleChapterToggle(chapter.id!)}
-                    className="mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <span className="text-gray-700">{chapter.name}</span>
-                </label>
-              ))
+              filteredChapters.map((chapter) => {
+                const isSelected = formValues.chapter_ids.includes(chapter.id!);
+                const subject = subjects.find(s => s.id === chapter.subject_id);
+                return (
+                  <label 
+                    key={chapter.id} 
+                    className={`flex items-center py-2 px-2 hover:bg-gray-50 cursor-pointer rounded ${isSelected ? 'bg-blue-50' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleChapterToggle(chapter.id!)}
+                      className="mr-3 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-gray-700">{chapter.name}</span>
+                      <span className="text-gray-400 text-xs">{subject?.name || 'Unknown Subject'}</span>
+                    </div>
+                  </label>
+                );
+              })
             )}
           </div>
-          {formValues.chapter_ids.length > 0 && (
-            <p className="text-sm text-gray-500 mt-1">
-              {formValues.chapter_ids.length} chapter(s) selected
-            </p>
-          )}
         </div>
 
         <div className="flex items-center justify-between mt-6">
