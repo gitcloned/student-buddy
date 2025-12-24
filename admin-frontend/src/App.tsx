@@ -64,6 +64,9 @@ import LearningProgressionPage from './pages/LearningProgressionPage';
 // POCs
 import ChalkboardTypingEffect from './pages/pocs/ChalkboardTest';
 
+// Bulk Import
+import BulkImportPage from './pages/bulk-import/BulkImportPage';
+
 const App: React.FC = () => {
   return (
     <Router>
@@ -145,6 +148,9 @@ const App: React.FC = () => {
           
           {/* POCs */}
           <Route path="/tests/chalkboard" element={<ChalkboardTypingEffect />} />
+          
+          {/* Bulk Import */}
+          <Route path="/bulk-import" element={<BulkImportPage />} />
         </Routes>
       </Layout>
     </Router>

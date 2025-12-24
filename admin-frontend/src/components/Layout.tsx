@@ -38,6 +38,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 Learning progression
               </Link>
             </li>
+            <li>
+              <Link
+                to="/bulk-import"
+                className={`block px-4 py-2 hover:bg-primary-dark ${isActive('/bulk-import')}`}
+              >
+                Bulk Import
+              </Link>
+            </li>
           </ul>
         </nav>
       </div>

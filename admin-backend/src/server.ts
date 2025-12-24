@@ -4,7 +4,14 @@ import bodyParser from "body-parser";
 import sqlite3 from "sqlite3";
 import { Database, open } from "sqlite";
 import dotenv from "dotenv";
+import multer from "multer";
+import * as XLSX from "xlsx";
+import * as fs from "fs";
+import * as path from "path";
 import { LearningProgressionController } from "./controllers/learningProgressionController";
+
+// Configure multer for file uploads
+const upload = multer({ dest: "uploads/" });
 
 // Load environment variables from .env file
 dotenv.config();
@@ -2619,6 +2626,345 @@ let learningProgressionController: LearningProgressionController;
 // GET a child's learning progression across a chapter
 app.get("/api/children/:childId/chapters/:chapterId/learning-progression", (req, res) => {
   learningProgressionController.getLearningProgression(req, res);
+});
+
+// ============================================================================
+// BULK IMPORT/EXPORT ENDPOINTS
+// ============================================================================
+
+// List of tables to export/import (in order to respect foreign key dependencies)
+const EXPORT_TABLES = [
+  "grades",
+  "books",
+  "book_features",
+  "teacher_personas",
+  "teachers",
+  "subjects",
+  "chapters",
+  "topics",
+  "topic_chapter_mapping",
+  "topic_prerequisites",
+  "children",
+  "child_subjects",
+  "teacher_subjects",
+  "resources",
+  "learning_indicators",
+  "learning_indicator_resources",
+  "learning_levels",
+  "lesson_plans",
+  "lesson_sections",
+  "section_resources",
+];
+
+// Helper function to create database backup
+async function createDatabaseBackup(): Promise<string> {
+  const dbPath = process.env.DATABASE_FILEPATH || "./admin_database.sqlite";
+  const backupDir = path.join(path.dirname(dbPath), "backups");
+  
+  // Create backups directory if it doesn't exist
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
+  }
+  
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const backupFilename = `${path.basename(dbPath)}.${timestamp}.sqlite`;
+  const backupPath = path.join(backupDir, backupFilename);
+  
+  // Copy the database file
+  fs.copyFileSync(dbPath, backupPath);
+  
+  return backupPath;
+}
+
+// GET /api/bulk/export - Export all data as Excel file
+app.get("/api/bulk/export", async (req: Request, res: Response) => {
+  try {
+    const workbook = XLSX.utils.book_new();
+    
+    for (const tableName of EXPORT_TABLES) {
+      try {
+        const rows = await db.all(`SELECT * FROM ${tableName}`);
+        
+        // Add _status column for user to mark changes
+        const rowsWithStatus = rows.map((row: any) => ({
+          ...row,
+          _status: "", // Empty by default, user can set to INSERT, UPDATE, DELETE
+        }));
+        
+        const worksheet = XLSX.utils.json_to_sheet(rowsWithStatus);
+        XLSX.utils.book_append_sheet(workbook, worksheet, tableName);
+      } catch (tableError) {
+        console.warn(`Warning: Could not export table ${tableName}:`, tableError);
+        // Create empty sheet with just headers
+        const worksheet = XLSX.utils.json_to_sheet([{ _status: "" }]);
+        XLSX.utils.book_append_sheet(workbook, worksheet, tableName);
+      }
+    }
+    
+    // Generate buffer
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    
+    // Set response headers for file download
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    res.setHeader("Content-Disposition", `attachment; filename=database_export_${timestamp}.xlsx`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buffer);
+  } catch (error) {
+    console.error("Error exporting data:", error);
+    res.status(500).json({ error: "Failed to export data" });
+  }
+});
+
+// POST /api/bulk/preview - Preview changes from uploaded Excel file
+app.post("/api/bulk/preview", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: "No file uploaded" });
+      return;
+    }
+    
+    const workbook = XLSX.readFile(req.file.path);
+    const summary: {
+      tableName: string;
+      inserts: number;
+      updates: number;
+      deletes: number;
+      errors: string[];
+    }[] = [];
+    
+    for (const sheetName of workbook.SheetNames) {
+      if (!EXPORT_TABLES.includes(sheetName)) {
+        continue;
+      }
+      
+      const worksheet = workbook.Sheets[sheetName];
+      const rows: any[] = XLSX.utils.sheet_to_json(worksheet);
+      
+      let inserts = 0;
+      let updates = 0;
+      let deletes = 0;
+      const errors: string[] = [];
+      
+      for (const row of rows) {
+        const status = (row._status || "").toString().toUpperCase().trim();
+        
+        if (status === "INSERT") {
+          inserts++;
+        } else if (status === "UPDATE") {
+          if (!row.id) {
+            errors.push(`Row missing 'id' for UPDATE operation`);
+          } else {
+            updates++;
+          }
+        } else if (status === "DELETE") {
+          if (!row.id) {
+            errors.push(`Row missing 'id' for DELETE operation`);
+          } else {
+            deletes++;
+          }
+        }
+      }
+      
+      if (inserts > 0 || updates > 0 || deletes > 0 || errors.length > 0) {
+        summary.push({
+          tableName: sheetName,
+          inserts,
+          updates,
+          deletes,
+          errors,
+        });
+      }
+    }
+    
+    // Clean up uploaded file
+    fs.unlinkSync(req.file.path);
+    
+    res.json({
+      success: true,
+      summary,
+      totalInserts: summary.reduce((acc, s) => acc + s.inserts, 0),
+      totalUpdates: summary.reduce((acc, s) => acc + s.updates, 0),
+      totalDeletes: summary.reduce((acc, s) => acc + s.deletes, 0),
+      totalErrors: summary.reduce((acc, s) => acc + s.errors.length, 0),
+    });
+  } catch (error) {
+    console.error("Error previewing import:", error);
+    res.status(500).json({ error: "Failed to preview import" });
+  }
+});
+
+// POST /api/bulk/import - Import changes from uploaded Excel file
+app.post("/api/bulk/import", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: "No file uploaded" });
+      return;
+    }
+    
+    // Create backup before making changes
+    const backupPath = await createDatabaseBackup();
+    console.log(`Database backup created at: ${backupPath}`);
+    
+    const workbook = XLSX.readFile(req.file.path);
+    const results: {
+      tableName: string;
+      inserts: { success: number; failed: number };
+      updates: { success: number; failed: number };
+      deletes: { success: number; failed: number };
+      errors: string[];
+    }[] = [];
+    
+    // Process tables in order (respecting foreign key dependencies)
+    for (const tableName of EXPORT_TABLES) {
+      if (!workbook.SheetNames.includes(tableName)) {
+        continue;
+      }
+      
+      const worksheet = workbook.Sheets[tableName];
+      const rows: any[] = XLSX.utils.sheet_to_json(worksheet);
+      
+      const tableResult = {
+        tableName,
+        inserts: { success: 0, failed: 0 },
+        updates: { success: 0, failed: 0 },
+        deletes: { success: 0, failed: 0 },
+        errors: [] as string[],
+      };
+      
+      // Get table columns (excluding _status)
+      const tableInfo = await db.all(`PRAGMA table_info(${tableName})`);
+      const columnNames = tableInfo.map((col: any) => col.name);
+      
+      for (const row of rows) {
+        const status = (row._status || "").toString().toUpperCase().trim();
+        
+        if (!status) {
+          continue; // Skip rows without status
+        }
+        
+        // Remove _status from row data
+        const rowData = { ...row };
+        delete rowData._status;
+        
+        try {
+          if (status === "INSERT") {
+            // Build INSERT query
+            const insertColumns = Object.keys(rowData).filter(
+              (col) => columnNames.includes(col) && col !== "id"
+            );
+            const placeholders = insertColumns.map(() => "?").join(", ");
+            const values = insertColumns.map((col) => rowData[col]);
+            
+            if (insertColumns.length > 0) {
+              await db.run(
+                `INSERT INTO ${tableName} (${insertColumns.join(", ")}) VALUES (${placeholders})`,
+                values
+              );
+              tableResult.inserts.success++;
+            }
+          } else if (status === "UPDATE") {
+            if (!rowData.id) {
+              tableResult.errors.push(`UPDATE failed: missing id`);
+              tableResult.updates.failed++;
+              continue;
+            }
+            
+            // Build UPDATE query
+            const updateColumns = Object.keys(rowData).filter(
+              (col) => columnNames.includes(col) && col !== "id"
+            );
+            const setClause = updateColumns.map((col) => `${col} = ?`).join(", ");
+            const values = [...updateColumns.map((col) => rowData[col]), rowData.id];
+            
+            if (updateColumns.length > 0) {
+              await db.run(
+                `UPDATE ${tableName} SET ${setClause} WHERE id = ?`,
+                values
+              );
+              tableResult.updates.success++;
+            }
+          } else if (status === "DELETE") {
+            if (!rowData.id) {
+              tableResult.errors.push(`DELETE failed: missing id`);
+              tableResult.deletes.failed++;
+              continue;
+            }
+            
+            await db.run(`DELETE FROM ${tableName} WHERE id = ?`, rowData.id);
+            tableResult.deletes.success++;
+          }
+        } catch (opError: any) {
+          const errorMsg = `${status} failed for row ${JSON.stringify(rowData)}: ${opError.message}`;
+          tableResult.errors.push(errorMsg);
+          
+          if (status === "INSERT") tableResult.inserts.failed++;
+          else if (status === "UPDATE") tableResult.updates.failed++;
+          else if (status === "DELETE") tableResult.deletes.failed++;
+        }
+      }
+      
+      if (
+        tableResult.inserts.success > 0 ||
+        tableResult.inserts.failed > 0 ||
+        tableResult.updates.success > 0 ||
+        tableResult.updates.failed > 0 ||
+        tableResult.deletes.success > 0 ||
+        tableResult.deletes.failed > 0
+      ) {
+        results.push(tableResult);
+      }
+    }
+    
+    // Clean up uploaded file
+    fs.unlinkSync(req.file.path);
+    
+    res.json({
+      success: true,
+      backupPath,
+      results,
+      summary: {
+        totalInserts: results.reduce((acc, r) => acc + r.inserts.success, 0),
+        totalUpdates: results.reduce((acc, r) => acc + r.updates.success, 0),
+        totalDeletes: results.reduce((acc, r) => acc + r.deletes.success, 0),
+        totalErrors: results.reduce((acc, r) => acc + r.errors.length, 0),
+      },
+    });
+  } catch (error) {
+    console.error("Error importing data:", error);
+    res.status(500).json({ error: "Failed to import data" });
+  }
+});
+
+// GET /api/bulk/backups - List available backups
+app.get("/api/bulk/backups", async (req: Request, res: Response) => {
+  try {
+    const dbPath = process.env.DATABASE_FILEPATH || "./admin_database.sqlite";
+    const backupDir = path.join(path.dirname(dbPath), "backups");
+    
+    if (!fs.existsSync(backupDir)) {
+      res.json({ backups: [] });
+      return;
+    }
+    
+    const files = fs.readdirSync(backupDir);
+    const backups = files
+      .filter((f) => f.endsWith(".sqlite") || f.includes(".sqlite."))
+      .map((f) => {
+        const stats = fs.statSync(path.join(backupDir, f));
+        return {
+          filename: f,
+          path: path.join(backupDir, f),
+          size: stats.size,
+          createdAt: stats.birthtime,
+        };
+      })
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    res.json({ backups });
+  } catch (error) {
+    console.error("Error listing backups:", error);
+    res.status(500).json({ error: "Failed to list backups" });
+  }
 });
 
 // Start the admin API server
